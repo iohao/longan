@@ -1,0 +1,344 @@
+[
+  {
+    "id": "vercel-labs/skills/find-skills",
+    "name": "find-skills",
+    "source": "vercel-labs/skills",
+    "description": "为当前任务自动发现并安装合适的技能",
+    "descriptionEnglish": "Discover and install the right skills for your current task",
+    "installs": 2668139,
+    "category": "Foundation"
+  },
+  {
+    "id": "anthropics/skills/frontend-design",
+    "name": "frontend-design",
+    "source": "anthropics/skills",
+    "description": "构建高质量、可直接上线的前端界面",
+    "descriptionEnglish": "Build production-grade frontend interfaces",
+    "installs": 702528,
+    "category": "Design"
+  },
+  {
+    "id": "vercel-labs/agent-skills/vercel-react-best-practices",
+    "name": "vercel-react-best-practices",
+    "source": "vercel-labs/agent-skills",
+    "description": "Vercel 官方 React 性能优化最佳实践",
+    "descriptionEnglish": "React performance best practices from Vercel",
+    "installs": 578336,
+    "category": "Performance"
+  },
+  {
+    "id": "vercel-labs/agent-browser/agent-browser",
+    "name": "agent-browser",
+    "source": "vercel-labs/agent-browser",
+    "description": "面向 AI Agent 的浏览器自动化",
+    "descriptionEnglish": "Browser automation for AI agents",
+    "installs": 577258,
+    "category": "Automation"
+  },
+  {
+    "id": "mattpocock/skills/tdd",
+    "name": "tdd",
+    "source": "mattpocock/skills",
+    "description": "测试驱动开发（TDD）工作流",
+    "descriptionEnglish": "Test-driven development workflow",
+    "installs": 518779,
+    "category": "Testing"
+  },
+  {
+    "id": "vercel-labs/agent-skills/web-design-guidelines",
+    "name": "web-design-guidelines",
+    "source": "vercel-labs/agent-skills",
+    "description": "网页界面设计规范与审查清单",
+    "descriptionEnglish": "Web interface design guidelines and review checklist",
+    "installs": 488537,
+    "category": "Design"
+  },
+  {
+    "id": "remotion-dev/skills/remotion-best-practices",
+    "name": "remotion-best-practices",
+    "source": "remotion-dev/skills",
+    "description": "用 React 以编程方式创建视频",
+    "descriptionEnglish": "Create videos programmatically with Remotion",
+    "installs": 444414,
+    "category": "Video"
+  },
+  {
+    "id": "anthropics/skills/skill-creator",
+    "name": "skill-creator",
+    "source": "anthropics/skills",
+    "description": "引导你创建自己的 Agent 技能",
+    "descriptionEnglish": "Guides you through creating your own agent skills",
+    "installs": 327360,
+    "category": "Foundation"
+  },
+  {
+    "id": "supabase/agent-skills/supabase-postgres-best-practices",
+    "name": "supabase-postgres-best-practices",
+    "source": "supabase/agent-skills",
+    "description": "Supabase 官方 Postgres 最佳实践",
+    "descriptionEnglish": "Postgres best practices from Supabase",
+    "installs": 305878,
+    "category": "Database"
+  },
+  {
+    "id": "obra/superpowers/brainstorming",
+    "name": "brainstorming",
+    "source": "obra/superpowers",
+    "description": "编码前的结构化头脑风暴与方案设计",
+    "descriptionEnglish": "Structured brainstorming and design before coding",
+    "installs": 295027,
+    "category": "Architecture"
+  },
+  {
+    "id": "leonxlnx/taste-skill/design-taste-frontend",
+    "name": "design-taste-frontend",
+    "source": "leonxlnx/taste-skill",
+    "description": "提升前端设计审美与细节品味",
+    "descriptionEnglish": "Frontend design taste and polish guidelines",
+    "installs": 287951,
+    "category": "Design"
+  },
+  {
+    "id": "juliusbrussee/caveman/caveman-commit",
+    "name": "caveman-commit",
+    "source": "juliusbrussee/caveman",
+    "description": "极简风格的 Commit 信息生成",
+    "descriptionEnglish": "Ultra-compressed conventional commit messages",
+    "installs": 264013,
+    "category": "DevOps"
+  },
+  {
+    "id": "obra/superpowers/systematic-debugging",
+    "name": "systematic-debugging",
+    "source": "obra/superpowers",
+    "description": "系统化调试方法论，先找根因再修复",
+    "descriptionEnglish": "Systematic debugging: root-cause before fixing",
+    "installs": 200068,
+    "category": "Debugging"
+  },
+  {
+    "id": "obra/superpowers/requesting-code-review",
+    "name": "requesting-code-review",
+    "source": "obra/superpowers",
+    "description": "向他人发起高质量代码评审请求",
+    "descriptionEnglish": "Request effective code reviews",
+    "installs": 179034,
+    "category": "Code Review"
+  },
+  {
+    "id": "mattpocock/skills/code-review",
+    "name": "code-review",
+    "source": "mattpocock/skills",
+    "description": "高信号代码评审工作流",
+    "descriptionEnglish": "High-signal code review workflow",
+    "installs": 175409,
+    "category": "Code Review"
+  },
+  {
+    "id": "anthropics/skills/pdf",
+    "name": "pdf",
+    "source": "anthropics/skills",
+    "description": "读取、生成与处理 PDF 文档",
+    "descriptionEnglish": "Read, create and manipulate PDF documents",
+    "installs": 165150,
+    "category": "Documents"
+  },
+  {
+    "id": "mattpocock/skills/setup-pre-commit",
+    "name": "setup-pre-commit",
+    "source": "mattpocock/skills",
+    "description": "为项目配置 pre-commit 钩子",
+    "descriptionEnglish": "Set up pre-commit hooks for your project",
+    "installs": 159225,
+    "category": "DevOps"
+  },
+  {
+    "id": "anthropics/skills/docx",
+    "name": "docx",
+    "source": "anthropics/skills",
+    "description": "读取、生成与处理 Word 文档",
+    "descriptionEnglish": "Read, create and manipulate Word documents",
+    "installs": 158773,
+    "category": "Documents"
+  },
+  {
+    "id": "obra/superpowers/receiving-code-review",
+    "name": "receiving-code-review",
+    "source": "obra/superpowers",
+    "description": "正确接收并处理代码评审意见",
+    "descriptionEnglish": "Receive and act on code review feedback",
+    "installs": 148658,
+    "category": "Code Review"
+  },
+  {
+    "id": "anthropics/skills/webapp-testing",
+    "name": "webapp-testing",
+    "source": "anthropics/skills",
+    "description": "Web 应用端到端测试",
+    "descriptionEnglish": "End-to-end testing for web applications",
+    "installs": 121182,
+    "category": "Testing"
+  },
+  {
+    "id": "anthropics/skills/mcp-builder",
+    "name": "mcp-builder",
+    "source": "anthropics/skills",
+    "description": "构建 MCP 服务器与工具",
+    "descriptionEnglish": "Build MCP servers and tools",
+    "installs": 93804,
+    "category": "MCP"
+  },
+  {
+    "id": "firebase/agent-skills/firebase-security-rules-auditor",
+    "name": "firebase-security-rules-auditor",
+    "source": "firebase/agent-skills",
+    "description": "审计 Firebase 安全规则",
+    "descriptionEnglish": "Audit Firebase security rules",
+    "installs": 77865,
+    "category": "Security"
+  },
+  {
+    "id": "neondatabase/agent-skills/neon-postgres",
+    "name": "neon-postgres",
+    "source": "neondatabase/agent-skills",
+    "description": "Neon Serverless Postgres 使用指南",
+    "descriptionEnglish": "Neon serverless Postgres usage guide",
+    "installs": 56200,
+    "category": "Database"
+  },
+  {
+    "id": "prisma/skills/prisma-postgres",
+    "name": "prisma-postgres",
+    "source": "prisma/skills",
+    "description": "Prisma + Postgres 数据建模与查询",
+    "descriptionEnglish": "Prisma with Postgres modeling and queries",
+    "installs": 45551,
+    "category": "Database"
+  },
+  {
+    "id": "github/awesome-copilot/git-commit",
+    "name": "git-commit",
+    "source": "github/awesome-copilot",
+    "description": "规范化 Git 提交信息",
+    "descriptionEnglish": "Well-formed git commit messages",
+    "installs": 40203,
+    "category": "DevOps"
+  },
+  {
+    "id": "samber/cc-skills-golang/golang-testing",
+    "name": "golang-testing",
+    "source": "samber/cc-skills-golang",
+    "description": "Go 语言测试最佳实践",
+    "descriptionEnglish": "Go testing best practices",
+    "installs": 34972,
+    "category": "Testing"
+  },
+  {
+    "id": "samber/cc-skills-golang/golang-security",
+    "name": "golang-security",
+    "source": "samber/cc-skills-golang",
+    "description": "Go 语言安全编码实践",
+    "descriptionEnglish": "Go secure coding practices",
+    "installs": 34656,
+    "category": "Security"
+  },
+  {
+    "id": "greensock/gsap-skills/gsap-react",
+    "name": "gsap-react",
+    "source": "greensock/gsap-skills",
+    "description": "在 React 中使用 GSAP 制作动画",
+    "descriptionEnglish": "GSAP animations in React",
+    "installs": 33762,
+    "category": "Frontend"
+  },
+  {
+    "id": "clerk/skills/clerk-nextjs-patterns",
+    "name": "clerk-nextjs-patterns",
+    "source": "clerk/skills",
+    "description": "Clerk 在 Next.js 中的认证集成模式",
+    "descriptionEnglish": "Clerk authentication patterns for Next.js",
+    "installs": 28195,
+    "category": "Auth"
+  },
+  {
+    "id": "wshobson/agents/python-testing-patterns",
+    "name": "python-testing-patterns",
+    "source": "wshobson/agents",
+    "description": "Python 测试模式与实践",
+    "descriptionEnglish": "Python testing patterns",
+    "installs": 28154,
+    "category": "Testing"
+  },
+  {
+    "id": "wshobson/agents/nextjs-app-router-patterns",
+    "name": "nextjs-app-router-patterns",
+    "source": "wshobson/agents",
+    "description": "Next.js App Router 模式与实践",
+    "descriptionEnglish": "Next.js App Router patterns",
+    "installs": 25370,
+    "category": "Frontend"
+  },
+  {
+    "id": "wshobson/agents/postgresql-table-design",
+    "name": "postgresql-table-design",
+    "source": "wshobson/agents",
+    "description": "PostgreSQL 表结构设计",
+    "descriptionEnglish": "PostgreSQL table design",
+    "installs": 22200,
+    "category": "Database"
+  },
+  {
+    "id": "better-auth/skills/better-auth-security-best-practices",
+    "name": "better-auth-security-best-practices",
+    "source": "better-auth/skills",
+    "description": "Better Auth 安全最佳实践",
+    "descriptionEnglish": "Better Auth security best practices",
+    "installs": 21646,
+    "category": "Security"
+  },
+  {
+    "id": "callstackincubator/agent-skills/react-native-best-practices",
+    "name": "react-native-best-practices",
+    "source": "callstackincubator/agent-skills",
+    "description": "React Native 开发最佳实践",
+    "descriptionEnglish": "React Native development best practices",
+    "installs": 20797,
+    "category": "Mobile"
+  },
+  {
+    "id": "mcp-use/mcp-use/mcp-apps-builder",
+    "name": "mcp-apps-builder",
+    "source": "mcp-use/mcp-use",
+    "description": "构建基于 MCP 的应用",
+    "descriptionEnglish": "Build MCP-powered applications",
+    "installs": 20699,
+    "category": "MCP"
+  },
+  {
+    "id": "wshobson/agents/e2e-testing-patterns",
+    "name": "e2e-testing-patterns",
+    "source": "wshobson/agents",
+    "description": "端到端测试模式与实践",
+    "descriptionEnglish": "End-to-end testing patterns",
+    "installs": 19880,
+    "category": "Testing"
+  },
+  {
+    "id": "github/awesome-copilot/multi-stage-dockerfile",
+    "name": "multi-stage-dockerfile",
+    "source": "github/awesome-copilot",
+    "description": "多阶段 Dockerfile 构建优化",
+    "descriptionEnglish": "Multi-stage Dockerfile builds",
+    "installs": 18987,
+    "category": "DevOps"
+  },
+  {
+    "id": "remotion-dev/skills/remotion-create",
+    "name": "remotion-create",
+    "source": "remotion-dev/skills",
+    "description": "快速创建 Remotion 视频项目",
+    "descriptionEnglish": "Scaffold Remotion video projects",
+    "installs": 18860,
+    "category": "Video"
+  }
+]
