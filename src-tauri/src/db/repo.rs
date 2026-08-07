@@ -160,8 +160,8 @@ pub fn set_skill_update_status(
     conn.execute(
         r#"UPDATE skills SET
            status = CASE
-             WHEN skills.tree_sha IS NOT NULL
-               AND (skills.tree_sha != ?3 OR ?3 IS NULL) THEN 'update_available'
+             WHEN skills.tree_sha IS NOT NULL AND ?3 IS NULL THEN 'ok'
+             WHEN skills.tree_sha IS NOT NULL AND skills.tree_sha != ?3 THEN 'update_available'
              WHEN skills.tree_sha IS NOT NULL AND skills.tree_sha = ?3 THEN 'ok'
              WHEN skills.latest_sha IS NOT NULL AND skills.latest_sha = ?2 THEN 'ok'
              ELSE 'update_available'
@@ -1602,6 +1602,33 @@ mod tests {
             get_skill(&conn, skill_id).unwrap().status,
             "update_available"
         );
+    }
+
+    #[test]
+    fn update_status_clears_stale_update_when_repository_path_disappears() {
+        let db = Db::open_in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        let skill_id = upsert_skill(
+            &conn,
+            "skill",
+            "net",
+            Some("owner"),
+            Some("repo"),
+            "net/owner/repo/skill",
+            None,
+            Some("installed-commit"),
+            None,
+            None,
+            Some("github"),
+            Some("skills/skill"),
+            Some("installed-tree"),
+        )
+        .unwrap();
+        set_skill_status(&conn, skill_id, "update_available").unwrap();
+
+        set_skill_update_status(&conn, skill_id, "new-commit", None).unwrap();
+
+        assert_eq!(get_skill(&conn, skill_id).unwrap().status, "ok");
     }
 
     #[test]

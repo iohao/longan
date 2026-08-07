@@ -134,6 +134,7 @@
     "updating": "更新中…",
     "updateQueued": "等待更新…",
     "updateSuccess": "Skill「{{name}}」更新成功",
+    "updateSkipped": "Skill「{{name}}」的上游已无可用更新，已保留本地副本",
     "skillUpdateProgress": "正在更新 {{name}}",
     "downloadProgress": "{{downloaded}} / {{total}}",
     "batchProgress": "批量更新进度",

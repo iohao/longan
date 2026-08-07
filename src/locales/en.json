@@ -134,6 +134,7 @@
     "updating": "Updating…",
     "updateQueued": "Waiting…",
     "updateSuccess": "Updated skill \"{{name}}\"",
+    "updateSkipped": "No newer source is available for \"{{name}}\"; the installed copy was retained",
     "skillUpdateProgress": "Updating {{name}}",
     "downloadProgress": "{{downloaded}} / {{total}}",
     "batchProgress": "Batch update progress",

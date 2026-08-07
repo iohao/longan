@@ -21,6 +21,9 @@ pub enum AppError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    #[error("skill source unavailable: {0}")]
+    SkillSourceUnavailable(String),
+
     // Reserved for site-sourced skills once v2 supports them.
     #[allow(dead_code)]
     #[error("unsupported source: {0}")]
@@ -58,6 +61,7 @@ impl AppError {
             AppError::RateLimited => "rate_limited",
             AppError::InvalidToken(_) => "invalid_token",
             AppError::NotFound(_) => "not_found",
+            AppError::SkillSourceUnavailable(_) => "skill_source_unavailable",
             AppError::UnsupportedSource(_) => "unsupported_source",
             AppError::InvalidInput(_) => "invalid_input",
             AppError::Cancelled => "cancelled",

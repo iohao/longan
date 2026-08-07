@@ -139,6 +139,8 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
       setUpdateTasks((current) => {
         const task = current[progress.skillId];
         if (!task) return current;
+        if (task.status === "success") return current;
+        if (task.status === "failed" && progress.phase !== "failed") return current;
         return {
           ...current,
           [progress.skillId]: {
@@ -236,7 +238,9 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
     }));
   }, []);
 
-  const runUpdateRequest = useCallback(async (skill: Skill): Promise<boolean> => {
+  const runUpdateRequest = useCallback(async (
+    skill: Skill
+  ): Promise<"updated" | "unchanged" | "failed"> => {
     setTaskRunning(skill);
     try {
       const updatedSkill = await api.updateSkill(skill.id);
@@ -257,7 +261,9 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
           error: null,
         },
       }));
-      return true;
+      return updatedSkill.latest_sha === skill.latest_sha && updatedSkill.tree_sha === skill.tree_sha
+        ? "unchanged"
+        : "updated";
     } catch (error) {
       const message = errorMessage(error);
       setInstalledError(message);
@@ -270,7 +276,7 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
           error: message,
         },
       }));
-      return false;
+      return "failed";
     } finally {
       runningUpdateIds.current.delete(skill.id);
       setRunningUpdateCount(runningUpdateIds.current.size);
@@ -291,10 +297,14 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
     setNotice(null);
     setUpdateTasks((current) => ({ ...current, [skill.id]: queuedTask(skill) }));
 
-    const succeeded = await runUpdateRequest(skill);
+    const outcome = await runUpdateRequest(skill);
     lockedUpdateIds.current.delete(skill.id);
-    if (succeeded) {
-      setNotice(t("library.updateSuccess", { name: skill.name }));
+    if (outcome !== "failed") {
+      setNotice(
+        outcome === "unchanged"
+          ? t("library.updateSkipped", { name: skill.name })
+          : t("library.updateSuccess", { name: skill.name })
+      );
       onSkillsChanged?.();
     }
   }, [onSkillsChanged, runUpdateRequest, t]);
@@ -328,8 +338,47 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
           return updated ? { ...updated, reference_count: skill.reference_count } : skill;
         })
       );
+      setUpdateTasks((current) => {
+        const next = { ...current };
+        for (const skill of updatableSkills) {
+          const task = current[skill.id] ?? queuedTask(skill);
+          next[skill.id] = updatedById.has(skill.id)
+            ? {
+                ...task,
+                status: "success",
+                phase: "completed",
+                progress: 100,
+                error: null,
+              }
+            : task.status === "failed"
+              ? task
+              : {
+                  ...task,
+                  status: "failed",
+                  phase: "failed",
+                  error: task.error ?? t("library.updatePhase.failed"),
+                };
+        }
+        return next;
+      });
     } catch (error) {
-      setInstalledError(errorMessage(error));
+      const message = errorMessage(error);
+      setInstalledError(message);
+      setUpdateTasks((current) => {
+        const next = { ...current };
+        for (const skill of updatableSkills) {
+          const task = current[skill.id] ?? queuedTask(skill);
+          next[skill.id] = task.status === "success" || task.status === "failed"
+            ? task
+            : {
+                ...task,
+                status: "failed",
+                phase: "failed",
+                error: message,
+              };
+        }
+        return next;
+      });
     }
 
     for (const skill of updatableSkills) lockedUpdateIds.current.delete(skill.id);
@@ -337,7 +386,7 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
     setBatchUpdating(false);
     await reloadSkills();
     onSkillsChanged?.();
-  }, [onSkillsChanged, reloadSkills, runUpdateRequest, skills]);
+  }, [onSkillsChanged, reloadSkills, skills, t]);
 
   const askDelete = useCallback(async (skill: Skill) => {
     setDeleting(skill);

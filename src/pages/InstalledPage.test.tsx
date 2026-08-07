@@ -270,6 +270,19 @@ describe("InstalledPage", () => {
     await waitFor(() => expect(buttons[0]).not.toBeInTheDocument());
   });
 
+  it("retains the installed copy when the upstream skill is unavailable", async () => {
+    mocks.updateSkill.mockResolvedValue({ ...skills[0], status: "ok" });
+    const user = userEvent.setup();
+    renderPage();
+
+    const buttons = await screen.findAllByRole("button", { name: "更新" });
+    await user.click(buttons[0]);
+
+    expect(
+      await screen.findByText("Skill「brainstorming」的上游已无可用更新，已保留本地副本")
+    ).toBeInTheDocument();
+  });
+
   it("renders backend phase and byte progress for the matching skill", async () => {
     const request = deferred<Skill>();
     mocks.updateSkill.mockReturnValue(request.promise);
@@ -361,6 +374,71 @@ describe("InstalledPage", () => {
 
     act(() => request.resolve(skills.map((skill) => ({ ...skill, status: "ok" }))));
     await waitFor(() => expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument());
+  });
+
+  it("reconciles batch results after later skills overwrite earlier progress", async () => {
+    const request = deferred<Skill[]>();
+    mocks.updateSkills.mockReturnValue(request.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: /一键批量更新/ }));
+    await waitFor(() => expect(mocks.progressListener).not.toBeNull());
+
+    act(() => {
+      mocks.progressListener?.({
+        skillId: 1,
+        phase: "completed",
+        progress: 100,
+        downloadedBytes: null,
+        totalBytes: null,
+        error: null,
+      });
+      mocks.progressListener?.({
+        skillId: 2,
+        phase: "completed",
+        progress: 100,
+        downloadedBytes: null,
+        totalBytes: null,
+        error: null,
+      });
+      for (const skillId of [1, 2]) {
+        mocks.progressListener?.({
+          skillId,
+          phase: "installing",
+          progress: 88,
+          downloadedBytes: null,
+          totalBytes: null,
+          error: null,
+        });
+      }
+      mocks.progressListener?.({
+        skillId: 3,
+        phase: "failed",
+        progress: 88,
+        downloadedBytes: null,
+        totalBytes: null,
+        error: "skill path not found in commit",
+      });
+    });
+
+    act(() => request.resolve(skills.slice(0, 2).map((skill) => ({ ...skill, status: "ok" }))));
+
+    expect(await screen.findByText("成功 2")).toBeInTheDocument();
+    expect(screen.getByText("失败 1")).toBeInTheDocument();
+    expect(screen.getByText("进行中/等待 0")).toBeInTheDocument();
+  });
+
+  it("marks unfinished batch tasks failed when the request rejects", async () => {
+    mocks.updateSkills.mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: /一键批量更新/ }));
+
+    expect(await screen.findByText("Error: network down")).toBeInTheDocument();
+    expect(screen.getByText("失败 3")).toBeInTheDocument();
+    expect(screen.getByText("进行中/等待 0")).toBeInTheDocument();
   });
 
   it("checks for updates from the compact header action", async () => {

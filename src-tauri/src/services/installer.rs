@@ -439,13 +439,15 @@ pub async fn stage_skill_from_repository(
             })
             .await
             .map_err(|_| AppError::Other("Git export task failed".into()))?
-            .map_err(map_git_cache_error)?;
+            .map_err(|error| {
+                map_skill_export_error(error, owner, repo_name, skill_id)
+            })?;
             (exported.source_path, Some(exported.tree_sha))
         }
         RepositorySource::Archive { extract_root, .. } => {
             let (skill_src, source_path) = skill_source(extract_root, skill_id, source_path)
                 .ok_or_else(|| {
-                    AppError::NotFound(format!(
+                    AppError::SkillSourceUnavailable(format!(
                         "skill '{skill_id}' with SKILL.md in {owner}/{repo_name}"
                     ))
                 })?;
@@ -582,6 +584,20 @@ fn map_git_cache_error(error: git_cache::GitCacheError) -> AppError {
             AppError::NotFound("skill path not found in commit".into())
         }
         other => AppError::Network(other.to_string()),
+    }
+}
+
+fn map_skill_export_error(
+    error: git_cache::GitCacheError,
+    owner: &str,
+    repo_name: &str,
+    skill_id: &str,
+) -> AppError {
+    match error {
+        git_cache::GitCacheError::NotFound => AppError::SkillSourceUnavailable(format!(
+            "skill '{skill_id}' with SKILL.md in {owner}/{repo_name}"
+        )),
+        other => map_git_cache_error(other),
     }
 }
 
@@ -853,6 +869,18 @@ mod tests {
     fn returns_none_when_absent() {
         let tmp = tempfile::tempdir().unwrap();
         assert!(find_skill_dir(tmp.path(), "nope").is_none());
+    }
+
+    #[test]
+    fn missing_git_skill_maps_to_source_unavailable() {
+        let error = map_skill_export_error(
+            git_cache::GitCacheError::NotFound,
+            "owner",
+            "repo",
+            "removed-skill",
+        );
+
+        assert!(matches!(error, AppError::SkillSourceUnavailable(_)));
     }
 
     #[test]

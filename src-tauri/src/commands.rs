@@ -603,7 +603,7 @@ pub async fn update_skills(
         for skill in &group {
             emit_skill_update_progress(&app, skill.id, "checking", 5, None, None, None);
         }
-        let reporter = |progress: installer::InstallProgress| {
+        let repository_reporter = |progress: installer::InstallProgress| {
             let (phase, value) = install_progress_value(progress);
             for skill in &group {
                 let show_bytes = skill.id == leader_id;
@@ -624,7 +624,7 @@ pub async fn update_skills(
             &owner,
             &repo_name,
             token.as_deref(),
-            Some(&reporter),
+            Some(&repository_reporter),
             None,
         )
         .await
@@ -679,6 +679,19 @@ pub async fn update_skills(
         for skill in &group {
             let skill_id = skill.id;
             let last_progress = AtomicU8::new(85);
+            let skill_reporter = |progress: installer::InstallProgress| {
+                let (phase, value) = install_progress_value(progress);
+                last_progress.store(value, Ordering::Relaxed);
+                emit_skill_update_progress(
+                    &app,
+                    skill_id,
+                    phase,
+                    value,
+                    progress.downloaded_bytes,
+                    progress.total_bytes,
+                    None,
+                );
+            };
             let downloaded = match installer::stage_skill_from_repository(
                 &state.paths,
                 &owner,
@@ -686,13 +699,43 @@ pub async fn update_skills(
                 skill.dir_path.rsplit('/').next().unwrap_or(&skill.name),
                 skill.source_path.as_deref(),
                 &repository,
-                Some(&reporter),
+                Some(&skill_reporter),
                 None,
                 true,
             )
             .await
             {
                 Ok(downloaded) => downloaded,
+                Err(AppError::SkillSourceUnavailable(_)) => {
+                    let preserved = {
+                        let conn = state.db.conn.lock().unwrap();
+                        preserve_installed_skill(&conn, skill_id)
+                    };
+                    match preserved {
+                        Ok(skill) => {
+                            emit_skill_update_progress(
+                                &app,
+                                skill_id,
+                                "completed",
+                                100,
+                                None,
+                                None,
+                                None,
+                            );
+                            updated.push(skill);
+                        }
+                        Err(error) => emit_skill_update_progress(
+                            &app,
+                            skill_id,
+                            "failed",
+                            last_progress.load(Ordering::Relaxed),
+                            None,
+                            None,
+                            Some(error.to_string()),
+                        ),
+                    }
+                    continue;
+                }
                 Err(error) => {
                     emit_skill_update_progress(
                         &app,
@@ -864,6 +907,10 @@ fn finalize_skill_update(
             }
             Ok(skill)
         }
+        Err(AppError::SkillSourceUnavailable(_)) => {
+            let conn = state.db.conn.lock().unwrap();
+            preserve_installed_skill(&conn, skill_id)
+        }
         Err(error) => {
             if matches!(&error, AppError::Cancelled) {
                 let conn = state.db.conn.lock().unwrap();
@@ -872,6 +919,11 @@ fn finalize_skill_update(
             Err(error)
         }
     }
+}
+
+fn preserve_installed_skill(conn: &rusqlite::Connection, skill_id: i64) -> AppResult<Skill> {
+    repo::set_skill_status(conn, skill_id, "ok")?;
+    repo::get_skill(conn, skill_id)
 }
 
 fn install_progress_value(update: installer::InstallProgress) -> (&'static str, u8) {
@@ -1888,6 +1940,33 @@ mod tests {
         delete_skill_source(&paths, &skill, Local::now()).unwrap();
 
         assert!(!source.exists());
+    }
+
+    #[test]
+    fn preserve_installed_skill_clears_stale_update_status() {
+        let db = crate::db::Db::open_in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        let skill_id = repo::upsert_skill(
+            &conn,
+            "removed-skill",
+            "net",
+            Some("owner"),
+            Some("repo"),
+            "net/owner/repo/removed-skill",
+            None,
+            Some("installed-commit"),
+            None,
+            None,
+            Some("github"),
+            Some("skills/removed-skill"),
+            Some("installed-tree"),
+        )
+        .unwrap();
+        repo::set_skill_status(&conn, skill_id, "update_available").unwrap();
+
+        let preserved = preserve_installed_skill(&conn, skill_id).unwrap();
+
+        assert_eq!(preserved.status, "ok");
     }
 
     #[test]
