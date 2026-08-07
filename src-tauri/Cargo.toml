@@ -1,6 +1,6 @@
 [package]
 name = "longan"
-version = "1.0.1"
+version = "1.0.2"
 description = "Local skill manager: install from skills.sh, organize with presets, symlink into projects"
 authors = ["you"]
 edition = "2021"
