@@ -1,0 +1,22 @@
+{
+  "version": "1.0.2",
+  "notes": "# Longan v1.0.2\n\nmacOS may block Longan the first time you open it. After moving `longan.app` to `/Applications`, verify that it came from this official release, open Terminal, and run the following command once:\n\n```bash\nsudo xattr -dr com.apple.quarantine \"/Applications/longan.app\"\n```\n\nOpen Longan again after the command completes.\n\n## Release notes\n\nLongan v1.0.2 makes skill updates safer when an upstream repository removes or moves a previously installed skill.\n\n### 1. Resilient skill updates\n\n- Keeps the installed copy when its upstream source is no longer available, clears stale update indicators, and reports that no newer source could be applied.\n- Preserves completed and failed task states during batch updates, then reconciles the final progress summary with the actual results.\n\n## 中文说明\n\nLongan v1.0.2 提升了 Skill 更新的可靠性。当上游仓库删除或移动已安装的 Skill 时，应用会保留本地副本、清除过期的更新提示，并明确告知当前没有可用的新版本。\n\n批量更新现在也会保留已完成和已失败任务的最终状态，并根据实际结果准确汇总更新进度。\n\n**Full Changelog**: https://github.com/iohao/longan/compare/v1.0.1...v1.0.2",
+  "platforms": {
+    "darwin-aarch64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.2/longan-v1.0.2-macos-arm64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdXcvWm4ycWgvSUlIK1pRWXlwWVUwVkk1ajQ5NDFLR0ZwbHdUWmpBeGY3UTYxUG0xckJOOEN1bUFqV1cyVzNpQUcwcGFBcnU2QnpvU2pMZjBNakM3YXdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDY5NTYxCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKYnhyT05MeVZ6QTlxMVhNYlQ4eXhMWXRDcFlpYnhFQUk1V2FkZ0huMWI1K29NRTNvQkZOOWEvdXp6RGNnUXRDdjVkcExHTmppdDY5YXB1ZjkxYjN6QkE9PQo="
+    },
+    "darwin-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.2/longan-v1.0.2-macos-x64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTJRK1pMMFdIQ3BHVmtuUmRnbmt5NWZMS21EMStUbHBsb0dzeXNTaWtVZEh5djdodVVVako4OXhtTFdTT1ArUGtwVU9PYUg4WFl3Q3c2TlFqVVNHQVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDY5NjgzCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKTWpiSmg2cmM4WE5Yc3hSaHFFZFBqb3NSL2N1a3pBVVBHQXJiSXNaR0dETlRaK1Q3KzRNUzZvUWpsb3pqRkRrRnU3OU9nbFc5b3B3amdDeDgyY21wRGc9PQo="
+    },
+    "linux-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.2/longan-v1.0.2-linux-x64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTRsSGRzdGpTRTlUV21HaENuNUtjUVg2VElnT3h2VXA1TU0vdURlYnk2c0JuNnNOY3RFaksxa091Uk9LelJNWElSNnpBekNpYnQvekw5bWNqVmtndmdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDY5NzQ4CWZpbGU6bG9uZ2FuXzEuMC4yX2FtZDY0LkFwcEltYWdlCnFHOFl4T21JS05TTWVvSzdoamFRb1RWRFd6OW9rN3FRbWlmdGh6WjAxaWt1WmhYdnU4YzRDWS9OL1JVbmRyNDQ0NU11dmxTRmcrUzNRdisxVzBIWERRPT0K"
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.2/longan-v1.0.2-windows-x64.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTVKQks1NHhzclQ1MmE4N3NBK1lYdFpZQTJYZ1BsYXpjWFNmY3RhVEdKYlVvb3lHVUdyRmpwbmNSenlXcktCSjdDMWlpaEFvUVlmTmI3RzduWFNmWVFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MDY5OTIyCWZpbGU6bG9uZ2FuXzEuMC4yX3g2NC1zZXR1cC5leGUKV0ZUb0tjSXN1SnRSZlUrbk8xMExRd0prMXIwajQwMFdpOTRFQlVKS2pFaUhxWmdhOU15MHZNMXQzVm5veEFjZHoyUEF6MVdFREtZeDBIN1dYU1I3RGc9PQo="
+    }
+  }
+}
