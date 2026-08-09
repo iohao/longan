@@ -1,5 +1,42 @@
 import type { Preset } from "../types";
 
+export const PRESET_ORDER_SETTING_KEY = "preset_order";
+
+export function parsePresetOrder(
+  savedOrderStr: string | null,
+  presets: readonly Preset[] = [],
+): number[] {
+  if (!savedOrderStr) return [];
+  try {
+    const parsed: unknown = JSON.parse(savedOrderStr);
+    if (!Array.isArray(parsed)) return [];
+    const validIds = parsed.filter((id): id is number => typeof id === "number");
+    if (presets.length === 0) return validIds;
+    const presetIdSet = new Set(presets.map((p) => p.id));
+    return validIds.filter((id) => presetIdSet.has(id));
+  } catch {
+    return [];
+  }
+}
+
+export function sortPresets(
+  presets: readonly Preset[],
+  presetOrder: readonly number[] = [],
+): Preset[] {
+  if (presetOrder.length === 0) return [...presets];
+
+  const orderMap: Record<number, number> = {};
+  presetOrder.forEach((id, index) => {
+    orderMap[id] = index;
+  });
+
+  return [...presets].sort((a, b) => {
+    const orderA = orderMap.hasOwnProperty(a.id) ? orderMap[a.id] : Number.MAX_SAFE_INTEGER;
+    const orderB = orderMap.hasOwnProperty(b.id) ? orderMap[b.id] : Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
+  });
+}
+
 export interface InheritedSkillGroup {
   presetId: number;
   presetName: string;

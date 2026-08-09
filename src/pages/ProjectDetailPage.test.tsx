@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EffectiveSkill, Preset, Project, Skill } from "../types";
 
 const mocks = vi.hoisted(() => ({
+  getSetting: vi.fn<() => Promise<string | null>>(async () => null),
   getProject: vi.fn(),
   listPresets: vi.fn(),
   listAgents: vi.fn(),
@@ -18,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../api", () => ({
   api: {
-    getSetting: vi.fn(async () => null),
+    getSetting: mocks.getSetting,
     getProject: mocks.getProject,
     listPresets: mocks.listPresets,
     listAgents: mocks.listAgents,
@@ -307,5 +308,21 @@ describe("ProjectDetailPage effective skill sources", () => {
     expect(within(inheritedRegion).queryByText("DIRECT-SKILL")).not.toBeInTheDocument();
     expect(within(inheritedRegion).queryByRole("region", { name: "A" })).not.toBeInTheDocument();
     expect(screen.getByText("DIRECT-SKILL")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectDetailPage preset ordering", () => {
+  it("renders preset tags according to the saved display order", async () => {
+    mocks.getSetting.mockResolvedValue(JSON.stringify([3, 1, 2]));
+    render(<ProjectDetailPage projectId={project.id} onBack={vi.fn()} />);
+
+    const presetHeading = await screen.findByRole("heading", { name: "Preset 标签" });
+    const presetSection = presetHeading.closest("div")?.parentElement;
+    expect(presetSection).not.toBeNull();
+
+    const buttons = within(presetSection as HTMLElement)
+      .getAllByRole("button")
+      .map((btn) => btn.querySelector("span")?.textContent);
+    expect(buttons).toEqual(["C", "A", "B"]);
   });
 });

@@ -4,7 +4,9 @@ import type { Preset } from "../types";
 import {
   buildInheritedSkillGroups,
   buildPresetSkillSourceGroups,
+  parsePresetOrder,
   replacePresetDirectSkills,
+  sortPresets,
 } from "./presets";
 
 function preset(
@@ -122,5 +124,32 @@ describe("replacePresetDirectSkills", () => {
       [1, 2, 4, 5],
     ]);
     expect(presets[1].skill_ids).toEqual([4]);
+  });
+});
+
+describe("parsePresetOrder", () => {
+  it("returns an empty array on invalid or missing JSON", () => {
+    expect(parsePresetOrder(null)).toEqual([]);
+    expect(parsePresetOrder("")).toEqual([]);
+    expect(parsePresetOrder("not json")).toEqual([]);
+    expect(parsePresetOrder("{}")).toEqual([]);
+  });
+
+  it("filters out non-numbers and filters against preset list when provided", () => {
+    const list = [preset(1, "A", []), preset(3, "C", [])];
+    expect(parsePresetOrder(JSON.stringify([3, "foo", 2, 1]), list)).toEqual([3, 1]);
+    expect(parsePresetOrder(JSON.stringify([3, 2, 1]))).toEqual([3, 2, 1]);
+  });
+});
+
+describe("sortPresets", () => {
+  it("preserves original array when order is empty", () => {
+    const list = [preset(1, "A", []), preset(2, "B", []), preset(3, "C", [])];
+    expect(sortPresets(list, [])).toEqual(list);
+  });
+
+  it("sorts presets based on presetOrder and appends unlisted presets at the end", () => {
+    const list = [preset(1, "A", []), preset(2, "B", []), preset(3, "C", [])];
+    expect(sortPresets(list, [3, 1])).toEqual([list[2], list[0], list[1]]);
   });
 });

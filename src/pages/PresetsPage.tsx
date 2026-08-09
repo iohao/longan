@@ -18,7 +18,13 @@ import {
 import { api, errorMessage } from "../api";
 import type { Preset, PresetReuseMode, Skill } from "../types";
 import { useDebounce } from "../utils/debounce";
-import { buildInheritedSkillGroups, replacePresetDirectSkills } from "../utils/presets";
+import {
+  buildInheritedSkillGroups,
+  parsePresetOrder,
+  replacePresetDirectSkills,
+  sortPresets,
+  PRESET_ORDER_SETTING_KEY,
+} from "../utils/presets";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
@@ -31,8 +37,6 @@ import SkillSourceActions from "../components/skills/SkillSourceActions";
 import PresetSummaryPanel from "../components/presets/PresetSummaryPanel";
 import PresetReuseSelector from "../components/presets/PresetReuseSelector";
 import PresetReferenceModal from "../components/presets/PresetReferenceModal";
-
-const PRESET_ORDER_SETTING_KEY = "preset_order";
 
 interface PresetsPageProps {
   onPresetsChanged?: () => void;
@@ -81,16 +85,8 @@ export default function PresetsPage({ onPresetsChanged }: PresetsPageProps) {
       setPresets(ps);
       setSkills(ss);
 
-      let savedOrder: number[] = [];
-      if (savedOrderStr) {
-        try {
-          savedOrder = JSON.parse(savedOrderStr);
-        } catch {
-          savedOrder = [];
-        }
-      }
       // Drop stale IDs of deleted presets; the next reorder persists the clean list
-      setPresetOrder(savedOrder.filter((id) => ps.some((p) => p.id === id)));
+      setPresetOrder(parsePresetOrder(savedOrderStr, ps));
 
       // Keep current active preset if valid, or default to first preset
       setActivePresetId((currentId) => {
@@ -109,20 +105,10 @@ export default function PresetsPage({ onPresetsChanged }: PresetsPageProps) {
   }, [reload]);
 
   // Performance optimization: Use object lookup instead of new Map() to reduce prototype overhead
-  const sortedPresets = useMemo(() => {
-    if (presetOrder.length === 0) return presets;
-    
-    const orderMap: Record<number, number> = {};
-    presetOrder.forEach((id, index) => {
-      orderMap[id] = index;
-    });
-    
-    return [...presets].sort((a, b) => {
-      const orderA = orderMap.hasOwnProperty(a.id) ? orderMap[a.id] : Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.hasOwnProperty(b.id) ? orderMap[b.id] : Number.MAX_SAFE_INTEGER;
-      return orderA - orderB;
-    });
-  }, [presets, presetOrder]);
+  const sortedPresets = useMemo(
+    () => sortPresets(presets, presetOrder),
+    [presets, presetOrder],
+  );
 
   // Filtered Presets by Search Query
   const filteredPresets = useMemo(() => {

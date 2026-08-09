@@ -23,7 +23,12 @@ import {
 } from "lucide-react";
 import { api, errorMessage } from "../api";
 import type { Agent, EffectiveSkill, Preset, Project, Skill, SyncReport } from "../types";
-import { buildPresetSkillSourceGroups } from "../utils/presets";
+import {
+  buildPresetSkillSourceGroups,
+  parsePresetOrder,
+  sortPresets,
+  PRESET_ORDER_SETTING_KEY,
+} from "../utils/presets";
 import {
   loadProjectDetailTab,
   saveProjectDetailTab,
@@ -51,6 +56,7 @@ export default function ProjectDetailPage({
   const { t } = useTranslation();
   const [project, setProject] = useState<Project | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [presetOrder, setPresetOrder] = useState<number[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [effective, setEffective] = useState<EffectiveSkill[]>([]);
@@ -66,18 +72,20 @@ export default function ProjectDetailPage({
 
   const reload = useCallback(async () => {
     try {
-      const [proj, ps, ag, ss, eff] = await Promise.all([
+      const [proj, ps, ag, ss, eff, savedOrderStr] = await Promise.all([
         api.getProject(projectId),
         api.listPresets(),
         api.listAgents(),
         api.rescanLocal(),
         api.effectiveSkills(projectId),
+        api.getSetting(PRESET_ORDER_SETTING_KEY),
       ]);
       setProject(proj);
       setPresets(ps);
       setAgents(ag);
       setSkills(ss);
       setEffective(eff);
+      setPresetOrder(parsePresetOrder(savedOrderStr, ps));
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -233,6 +241,11 @@ export default function ProjectDetailPage({
     );
   }, [filteredSkills, attachedSkillIds, effective]);
 
+  const sortedPresets = useMemo(
+    () => sortPresets(presets, presetOrder),
+    [presets, presetOrder],
+  );
+
   // Keep project-owned skills separate, then map preset skills to their concrete owners.
   const groupedEffective = useMemo(() => {
     const direct = effective.filter((item) => item.via === "direct");
@@ -241,7 +254,7 @@ export default function ProjectDetailPage({
         .filter((item) => item.via !== "direct")
         .map((item) => [item.skill_id, item]),
     );
-    const presetGroups = buildPresetSkillSourceGroups(presets, project?.preset_ids ?? [])
+    const presetGroups = buildPresetSkillSourceGroups(sortedPresets, project?.preset_ids ?? [])
       .map((group) => ({
         ...group,
         items: group.skillIds.flatMap((skillId) => {
@@ -252,7 +265,7 @@ export default function ProjectDetailPage({
       .filter((group) => group.items.length > 0);
 
     return { direct, presets: presetGroups };
-  }, [effective, presets, project?.preset_ids]);
+  }, [effective, sortedPresets, project?.preset_ids]);
 
   const skillsById = useMemo(
     () => new Map(skills.map((skill) => [skill.id, skill])),
@@ -627,7 +640,7 @@ export default function ProjectDetailPage({
             </Badge>
           </div>
           <div className="flex flex-wrap gap-2">
-            {presets.map((p) => {
+            {sortedPresets.map((p) => {
               const active = project?.preset_ids.includes(p.id);
               return (
                 <button
@@ -648,7 +661,7 @@ export default function ProjectDetailPage({
                 </button>
               );
             })}
-            {presets.length === 0 && (
+            {sortedPresets.length === 0 && (
               <p className="text-xs text-slate-500">{t("common.empty")}</p>
             )}
           </div>
