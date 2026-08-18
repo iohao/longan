@@ -1,0 +1,22 @@
+{
+  "version": "1.0.3",
+  "notes": "# Longan v1.0.3\n\nmacOS may block Longan the first time you open it. After moving `longan.app` to `/Applications`, verify that it came from this official release, open Terminal, and run the following command once:\n\n```bash\nsudo xattr -dr com.apple.quarantine \"/Applications/longan.app\"\n```\n\nOpen Longan again after the command completes.\n\nLongan 1.0.3 makes project skill synchronization more practical for skill collections and keeps preset ordering consistent wherever you view a project.\n\n## What's changed\n\n1. **Direct child links for skill collections**\n   - Project synchronization now expands a selected skill collection into links for its valid direct child skills.\n   - Obsolete parent collection links are cleaned up automatically, and conflicting child names are reported.\n\n2. **Consistent preset order**\n   - Project detail views now honor the saved preset order, matching the ordering shown on the Presets page.\n\n## 中文说明\n\nLongan 1.0.3 改进了项目技能同步和预设展示的一致性。\n\n1. **技能集合直接链接**\n   - 同步项目时，技能集合会展开为其有效的直属子技能链接。\n   - 旧的集合父级链接会自动清理，子技能名称冲突会被报告。\n\n2. **预设顺序一致**\n   - 项目详情页现在会遵循已保存的预设顺序，与预设页面保持一致。\n\n**Full Changelog**: https://github.com/iohao/longan/compare/v1.0.2...v1.0.3",
+  "platforms": {
+    "darwin-aarch64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.3/longan-v1.0.3-macos-arm64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTQ2bWRuNW5lZmJEUTZwcm5oeUR6MlR2eTY5eE5kSllId0pCZW1oMkNuOEE5L1k5SVVNTjgwbGhGa3lRUWUrQW51TGg0RGlGc0lRYUJZR3A3ak5rOFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDQ3MjU4CWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKTml1ZUxRaXZud080dlcyMzR1MmFwV3pNTDdhNzBraVA4ajJFUVBvbmFlZE9ITWU5R2lCcjlMclBrTmt2RXVCNjhDcU9JMnpYQXF0bm5pbHBJbit5Qmc9PQo="
+    },
+    "darwin-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.3/longan-v1.0.3-macos-x64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTBEY0VuZVR0RW91Z3IxY3k3cW03R0trOGgwRTZsd3ZRVzBwSk85TjFndkxiMXdnVHEvZkc1a3hSc1pEelFnQlB4UFhobDI4Yk9YU25jbEhLUFppaVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDQ3MzgwCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKY2VrbnVjT1ZNdnVnVjVSd0s1Y3NOL3B5VzY3SDFFTlZDdTBmOHkreDhhV3NDOGVSZ1AzdGQ1c0EvdHp0M2t0SGVMTm55bk9DMmc5R2ZHdW1SWEthQkE9PQo="
+    },
+    "linux-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.3/longan-v1.0.3-linux-x64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTZHSlhaQzNWdmlqbnI3STJEQ0tNWnpKR1JTOTR0RlpKRlB6eWZsNjdSdnVNaVhibFJweGpvWklCeVpjNlRqME5wZ0c4Sll3enZyTGhaSGlYbDBvd1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDQ3NTA5CWZpbGU6bG9uZ2FuXzEuMC4zX2FtZDY0LkFwcEltYWdlClJSak9kQWJpaFEzQjNkN2lmUENFRWlnVnN5UUZQdGxiNHQwVlFKbGlaZ3ZaQU4rTWppdnVBQkhaOXh6OTVIUTNRSG13MjhhdjVQRGZublduOHpHUEJnPT0K"
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.0.3/longan-v1.0.3-windows-x64.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTc0aDJTTEUyV3I0TlU5N1p1TnZWUSttUStqWjk4R3RrOTV0MWxSTUwzbTZmUWZHSURrVzR6TVQ3aDdRY1RPTzdnTDY0SGVtSGttY3FNTnpoclkySEFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MDQ3NjQzCWZpbGU6bG9uZ2FuXzEuMC4zX3g2NC1zZXR1cC5leGUKc2pkZ2hPOVEydUtQZmQzSlcwNklqd1MwaE9QNHplZDB3RDl6UFFoVFVMOWMvSVR2ZGZjOHpxSEpnaSsxNDQwZVRvR0JvTFVpUnVSc012N0I2azF5QVE9PQo="
+    }
+  }
+}
