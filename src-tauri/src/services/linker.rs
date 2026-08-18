@@ -51,6 +51,75 @@ pub fn resolve_effective(rows: &[(Skill, String)]) -> Vec<EffectiveSkill> {
     out
 }
 
+#[derive(Default)]
+struct ExpandedSkillTargets {
+    links: Vec<(String, PathBuf)>,
+    invalid: Vec<String>,
+}
+
+/// Expand a collection directory into links for its direct child skills.
+/// A regular skill keeps its database name and target unchanged.
+fn expand_skill_targets(skill_name: &str, target: &Path) -> AppResult<ExpandedSkillTargets> {
+    if target.join("SKILL.md").is_file() {
+        return Ok(ExpandedSkillTargets {
+            links: vec![(skill_name.to_owned(), target.to_path_buf())],
+            invalid: vec![],
+        });
+    }
+
+    let mut expanded = ExpandedSkillTargets::default();
+    let Ok(entries) = std::fs::read_dir(target) else {
+        return Ok(expanded);
+    };
+    for entry in entries {
+        let entry = entry?;
+        let child = entry.path();
+        let raw_name = entry.file_name().to_string_lossy().into_owned();
+        if raw_name.starts_with('.') || !child.is_dir() || !child.join("SKILL.md").is_file() {
+            continue;
+        }
+
+        let Some(name) = validate::sanitize_link_name(&raw_name) else {
+            expanded
+                .invalid
+                .push(format!("{skill_name}/{raw_name}: invalid child skill name"));
+            continue;
+        };
+        if name != raw_name {
+            expanded
+                .invalid
+                .push(format!("{skill_name}/{raw_name}: invalid child skill name"));
+            continue;
+        }
+        expanded.links.push((name, child));
+    }
+    expanded.links.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(expanded)
+}
+
+fn insert_desired_target(
+    desired: &mut BTreeMap<String, PathBuf>,
+    origins: &mut BTreeMap<String, String>,
+    name: String,
+    target: PathBuf,
+    via: &str,
+    conflicts: &mut Vec<String>,
+) {
+    match desired.get(&name) {
+        None => {
+            origins.insert(name.clone(), via.to_owned());
+            desired.insert(name, target);
+        }
+        Some(existing) if existing != &target => {
+            let existing_via = origins.get(&name).map(String::as_str).unwrap_or("unknown");
+            conflicts.push(format!(
+                "{name} (via {via}) conflicts with {name} (via {existing_via})"
+            ));
+        }
+        Some(_) => {}
+    }
+}
+
 /// Sync `<project>/.agents/skills/` to match the desired link set.
 /// `desired` maps link name -> absolute target dir. Only symlinks pointing
 /// under `skills_root` are managed; anything else is left untouched.
@@ -154,6 +223,7 @@ pub fn sync_project_with_sweeps(
     let effective = resolve_effective(&rows);
 
     let mut desired: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let mut origins: BTreeMap<String, String> = BTreeMap::new();
     let mut invalid: Vec<String> = vec![];
     for e in effective.iter().filter(|e| !e.conflicted) {
         // Defense in depth: names and dir_paths are sanitized when stored, but
@@ -161,7 +231,24 @@ pub fn sync_project_with_sweeps(
         let name_ok = validate::sanitize_link_name(&e.name).as_deref() == Some(e.name.as_str());
         match (name_ok, paths.checked_skill_source_dir(&e.dir_path)) {
             (true, Ok(target)) => {
-                desired.insert(e.name.clone(), target);
+                let expanded = expand_skill_targets(&e.name, &target)?;
+                if expanded.links.is_empty() {
+                    invalid.push(format!(
+                        "{}: source missing or contains no valid child skills",
+                        e.name
+                    ));
+                }
+                invalid.extend(expanded.invalid);
+                for (name, child_target) in expanded.links {
+                    insert_desired_target(
+                        &mut desired,
+                        &mut origins,
+                        name,
+                        child_target,
+                        &e.via,
+                        &mut invalid,
+                    );
+                }
             }
             _ => invalid.push(format!("{}: invalid name or path", e.name)),
         }
@@ -330,6 +417,8 @@ pub fn doctor_fix(conn: &Connection, paths: &Paths) -> AppResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::Db;
+    use crate::services::scanner;
 
     fn skill(id: i64, name: &str, dir_path: &str) -> Skill {
         Skill {
@@ -389,6 +478,87 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("SKILL.md"), "---\nname: x\n---\n").unwrap();
         dir
+    }
+
+    #[test]
+    fn expands_collection_into_direct_child_skill_links() {
+        let (_tmp, paths, _project) = setup_dirs();
+        let collection = paths.skills_dir().join("local/dc-skill");
+        make_source(&paths, "local/dc-skill/dc-class");
+        make_source(&paths, "local/dc-skill/dc-module-design");
+        std::fs::create_dir_all(collection.join("scripts")).unwrap();
+
+        let expanded = expand_skill_targets("dc-skill", &collection).unwrap();
+        let names: Vec<_> = expanded
+            .links
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect();
+
+        assert_eq!(names, vec!["dc-class", "dc-module-design"]);
+        assert!(expanded.invalid.is_empty());
+    }
+
+    #[test]
+    fn project_sync_replaces_collection_parent_link_with_child_links() {
+        let (_tmp, paths, project) = setup_dirs();
+        let collection = paths.local_dir().join("dc-skill");
+        make_source(&paths, "local/dc-skill/dc-class");
+        make_source(&paths, "local/dc-skill/dc-module-design");
+
+        let db = Db::open_in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        scanner::rescan(&conn, &paths).unwrap();
+        let skill = repo::list_skills(&conn).unwrap().pop().unwrap();
+        let project_id = repo::create_project(
+            &conn,
+            "project",
+            project.to_str().expect("temporary project path is valid UTF-8"),
+        )
+        .unwrap();
+        repo::set_project_skill(&conn, project_id, skill.id, true).unwrap();
+
+        let links_dir = project.join(DEFAULT_LINKS_DIR);
+        std::fs::create_dir_all(&links_dir).unwrap();
+        platform_link::create_dir_link(&collection, &links_dir.join("dc-skill")).unwrap();
+
+        let report = sync_project(&conn, &paths, project_id).unwrap();
+
+        assert_eq!(report.created, vec!["dc-class", "dc-module-design"]);
+        assert_eq!(report.removed, vec!["dc-skill"]);
+        assert!(std::fs::symlink_metadata(links_dir.join("dc-skill")).is_err());
+        assert!(links_dir.join("dc-class").is_dir());
+        assert!(links_dir.join("dc-module-design").is_dir());
+    }
+
+    #[test]
+    fn flattened_names_keep_first_target_and_report_conflicts() {
+        let (_tmp, paths, _project) = setup_dirs();
+        let first = make_source(&paths, "local/first/shared");
+        let second = make_source(&paths, "local/second/shared");
+        let mut desired = BTreeMap::new();
+        let mut origins = BTreeMap::new();
+        let mut conflicts = vec![];
+
+        insert_desired_target(
+            &mut desired,
+            &mut origins,
+            "shared".into(),
+            first.clone(),
+            "direct",
+            &mut conflicts,
+        );
+        insert_desired_target(
+            &mut desired,
+            &mut origins,
+            "shared".into(),
+            second,
+            "preset",
+            &mut conflicts,
+        );
+
+        assert_eq!(desired.get("shared"), Some(&first));
+        assert_eq!(conflicts.len(), 1);
     }
 
     #[test]
