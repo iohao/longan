@@ -211,6 +211,7 @@ function AppContent() {
           projectGroups={projectGroups}
           presets={presets}
           showHiddenProjects={showHiddenProjectsInSidebar}
+          onSetHiddenProjectsPreview={handleSetHiddenProjectsPreview}
           onAddProject={handleAddProject}
         />
         

@@ -13,6 +13,7 @@ import {
   Bot,
   Archive,
   MoreVertical,
+  Eye,
   EyeOff,
   FolderTree,
 } from "lucide-react";
@@ -54,6 +55,8 @@ interface SidebarProps {
   presets?: Preset[];
   showHiddenProjects?: boolean;
   onAddProject?: () => void;
+  onSetHiddenProjectsPreview?: (show: boolean) => Promise<void> | void;
+  onToggleHiddenProjects?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -66,6 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   presets = [],
   showHiddenProjects = false,
   onAddProject,
+  onSetHiddenProjectsPreview,
+  onToggleHiddenProjects,
 }) => {
   const { t } = useTranslation();
   const { updatableCount } = useUpdateNotification();
@@ -77,11 +82,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     () => buildProjectGroupSections(projectGroups, projects),
     [projectGroups, projects],
   );
+  const hasHiddenItems = useMemo(
+    () =>
+      groupedProjects.some(
+        ({ group, hiddenProjects }) => group.hidden || hiddenProjects.length > 0,
+      ),
+    [groupedProjects],
+  );
   const sidebarGroups = groupedProjects.filter(({ group, visibleProjects, hiddenProjects }) => {
     if (group.hidden && !showHiddenProjects) return false;
     const displayedCount = visibleProjects.length + (showHiddenProjects ? hiddenProjects.length : 0);
     return displayedCount > 0;
   });
+
+  const handleToggleHidden = () => {
+    const next = !showHiddenProjects;
+    if (onToggleHiddenProjects) {
+      onToggleHiddenProjects();
+    } else if (onSetHiddenProjectsPreview) {
+      void onSetHiddenProjectsPreview(next);
+    }
+  };
 
   // Close tools dropdown when clicking outside or switching pages
   useEffect(() => {
@@ -272,6 +293,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-1.5 shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
+              {(hasHiddenItems || showHiddenProjects) && (onToggleHiddenProjects || onSetHiddenProjectsPreview) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleHidden();
+                    if (!showHiddenProjects && !isProjectsExpanded) {
+                      setIsProjectsExpanded(true);
+                    }
+                  }}
+                  aria-pressed={showHiddenProjects}
+                  aria-label={t(
+                    showHiddenProjects
+                      ? "projects.endHiddenProjectsPreview"
+                      : "projectGroups.showHiddenItems",
+                  )}
+                  title={t(
+                    showHiddenProjects
+                      ? "projects.endHiddenProjectsPreview"
+                      : "projectGroups.showHiddenItems",
+                  )}
+                  className={`p-1 rounded-lg transition-all ${
+                    showHiddenProjects
+                      ? "text-emerald-400 bg-emerald-500/20 hover:bg-emerald-500/30 hover:text-emerald-300"
+                      : "text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  {showHiddenProjects ? (
+                    <Eye className="w-3.5 h-3.5" />
+                  ) : (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
               {onAddProject && (
                 <button
                   type="button"

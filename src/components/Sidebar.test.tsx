@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -125,5 +126,49 @@ describe("Sidebar", () => {
       ungrouped!.compareDocumentPosition(servers) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByText("未分组")).not.toBeInTheDocument();
+  });
+
+  it("renders eye toggle button to toggle hidden projects preview", async () => {
+    const user = userEvent.setup();
+    const onSetHiddenProjectsPreview = vi.fn();
+    renderSidebar({
+      showHiddenProjects: false,
+      onSetHiddenProjectsPreview,
+    });
+
+    const toggleButton = screen.getByRole("button", { name: "显示隐藏项" });
+    expect(toggleButton).toHaveAttribute("aria-pressed", "false");
+    expect(toggleButton.querySelector(".lucide-eye-off")).toBeInTheDocument();
+
+    await user.click(toggleButton);
+    expect(onSetHiddenProjectsPreview).toHaveBeenCalledWith(true);
+  });
+
+  it("renders end preview eye button when hidden projects preview is active", async () => {
+    const user = userEvent.setup();
+    const onSetHiddenProjectsPreview = vi.fn();
+    renderSidebar({
+      showHiddenProjects: true,
+      onSetHiddenProjectsPreview,
+    });
+
+    const toggleButton = screen.getByRole("button", { name: "结束预览" });
+    expect(toggleButton).toHaveAttribute("aria-pressed", "true");
+    expect(toggleButton.querySelector(".lucide-eye")).toBeInTheDocument();
+
+    await user.click(toggleButton);
+    expect(onSetHiddenProjectsPreview).toHaveBeenCalledWith(false);
+  });
+
+  it("does not render eye toggle button when there are no hidden items and preview is off", () => {
+    renderSidebar({
+      projects: [project(1, "Ungrouped visible", 0)],
+      projectGroups: [groups[0]],
+      showHiddenProjects: false,
+      onSetHiddenProjectsPreview: vi.fn(),
+    });
+
+    expect(screen.queryByRole("button", { name: "显示隐藏项" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "结束预览" })).not.toBeInTheDocument();
   });
 });
