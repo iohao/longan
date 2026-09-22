@@ -20,6 +20,21 @@ vi.mock("../context/SkillInstallContext", () => ({
   }),
 }));
 
+vi.mock("../context/UpdateContext", () => ({
+  useAppUpdate: () => ({
+    currentVersion: "1.0.3",
+    availableUpdate: null,
+    updateStatus: "idle",
+    updateErrorMessage: null,
+    isInstallingUpdate: false,
+    updateDownloadedBytes: 0,
+    updateContentLength: null,
+    checkForUpdates: vi.fn(),
+    installUpdate: vi.fn(),
+    dismissUpdate: vi.fn(),
+  }),
+}));
+
 import i18n from "../i18n";
 import type { Project, ProjectGroup } from "../types";
 import Sidebar from "./Sidebar";
@@ -73,11 +88,20 @@ describe("Sidebar", () => {
     await i18n.changeLanguage("zh");
   });
 
-  it("renders branding without page shortcut hints", () => {
+  it("renders branding with version and without page shortcut hints", () => {
     renderSidebar({ projects: [], projectGroups: [groups[0]] });
 
-    expect(screen.getByText("代号 - 火龙果")).toBeInTheDocument();
+    expect(screen.getByText("v1.0.3")).toBeInTheDocument();
     expect(screen.queryByText(/^⌘\d+$/)).not.toBeInTheDocument();
+  });
+
+  it("formats custom or prefixed version strings properly", () => {
+    const { unmount } = renderSidebar({ currentVersion: "2.0.0" });
+    expect(screen.getByText("v2.0.0")).toBeInTheDocument();
+    unmount();
+
+    renderSidebar({ currentVersion: "v3.1.2" });
+    expect(screen.getByText("v3.1.2")).toBeInTheDocument();
   });
 
   it("shows only visible groups and visible projects while preview is off", () => {

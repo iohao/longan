@@ -21,6 +21,7 @@ import type { Preset, Project, ProjectGroup } from "../types";
 import { getProjectSkillCount } from "../types";
 import { buildProjectGroupSections } from "../utils/projectOrder";
 import { useUpdateNotification } from "../context/UpdateNotificationContext";
+import { useAppUpdate } from "../context/UpdateContext";
 import SkillInstallQueue from "./SkillInstallQueue";
 
 export type PageKey = "market" | "installed" | "presets" | "agents" | "migration" | "projects" | "settings" | "tools";
@@ -57,6 +58,7 @@ interface SidebarProps {
   onAddProject?: () => void;
   onSetHiddenProjectsPreview?: (show: boolean) => Promise<void> | void;
   onToggleHiddenProjects?: () => void;
+  currentVersion?: string | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -71,9 +73,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddProject,
   onSetHiddenProjectsPreview,
   onToggleHiddenProjects,
+  currentVersion: propCurrentVersion,
 }) => {
   const { t } = useTranslation();
   const { updatableCount } = useUpdateNotification();
+  const { currentVersion: contextVersion } = useAppUpdate();
+  const rawVersion = propCurrentVersion ?? contextVersion;
+  const displayVersion = rawVersion
+    ? (rawVersion.startsWith("v") ? rawVersion : `v${rawVersion}`)
+    : "";
   const [isProjectsExpanded, setIsProjectsExpanded] = useState<boolean>(true);
   const [isToolsExpanded, setIsToolsExpanded] = useState<boolean>(false);
   const previousPageRef = useRef<PageKey>(currentPage);
@@ -236,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <h1 className="text-sm font-bold tracking-wide text-slate-100 flex items-center gap-1.5">
             Longan
           </h1>
-          <p className="text-[11px] text-slate-400 font-mono">{t("app.codename")}</p>
+          <p className="text-[11px] text-slate-400 font-mono min-h-[1rem]">{displayVersion}</p>
         </div>
       </div>
 
