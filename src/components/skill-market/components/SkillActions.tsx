@@ -13,6 +13,7 @@ interface SkillActionsProps {
   skill: ListedSkill;
   updateTask?: SkillUpdateTask;
   updateDisabled: boolean;
+  hideRepoActions?: boolean;
   onUpdate: (skill: Skill) => void;
   onDelete: (skill: Skill) => void;
   onViewReferences: (skill: Skill) => void;
@@ -26,6 +27,7 @@ export default function SkillActions({
   skill,
   updateTask,
   updateDisabled,
+  hideRepoActions = false,
   onUpdate,
   onDelete,
   onViewReferences,
@@ -63,7 +65,7 @@ export default function SkillActions({
         </Button>
       )}
 
-      <SkillSourceActions skill={skill} onError={onActionError}>
+      <SkillSourceActions skill={skill} onError={onActionError} hideRepoActions={hideRepoActions}>
         <Button
           type="button"
           size="sm"

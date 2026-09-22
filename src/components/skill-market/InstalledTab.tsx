@@ -480,6 +480,7 @@ export default function InstalledTab({
           renderItem={(skill) => (
             <SkillCard
               skill={skill}
+              viewMode="flat"
               updateTask={updateTasks[skill.id]}
               updateDisabled={!updateTasks[skill.id] && updatesAtCapacity}
               onUpdate={onUpdate}

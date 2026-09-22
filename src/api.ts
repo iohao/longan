@@ -166,6 +166,11 @@ export const api = {
   openLogsDir: () => invoke<void>("open_logs_dir"),
   exportDiagnostics: () => invoke<string>("export_diagnostics"),
   openSkillDir: (skillId: number) => invoke<void>("open_skill_dir", { skillId }),
+  openSkillGroupDir: (
+    sourceType: "net" | "local",
+    owner?: string | null,
+    repo?: string | null,
+  ) => invoke<void>("open_skill_group_dir", { sourceType, owner, repo }),
   openPath: (path: string) => invoke<void>("open_path", { path }),
 
   // Profile transfer

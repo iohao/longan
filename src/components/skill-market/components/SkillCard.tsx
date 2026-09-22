@@ -9,6 +9,7 @@ interface SkillCardProps {
   skill: ListedSkill;
   updateTask?: SkillUpdateTask;
   updateDisabled: boolean;
+  viewMode?: "tree" | "flat";
   onUpdate: (skill: Skill) => void;
   onDelete: (skill: Skill) => void;
   onViewReferences: (skill: Skill) => void;
@@ -19,6 +20,7 @@ const SkillCard = memo(function SkillCard({
   skill,
   updateTask,
   updateDisabled,
+  viewMode = "flat",
   onUpdate,
   onDelete,
   onViewReferences,
@@ -52,6 +54,7 @@ const SkillCard = memo(function SkillCard({
           skill={skill}
           updateTask={updateTask}
           updateDisabled={updateDisabled}
+          hideRepoActions={viewMode === "tree"}
           onUpdate={onUpdate}
           onDelete={onDelete}
           onViewReferences={onViewReferences}
@@ -59,10 +62,18 @@ const SkillCard = memo(function SkillCard({
         />
       </div>
 
-      <p className="w-full truncate font-mono text-xs text-slate-400">
-        {skill.source_type === "net" ? `${skill.owner}/${skill.repo}` : skill.dir_path}
-        {skill.description ? ` • ${skill.description}` : ""}
-      </p>
+      {viewMode === "tree" ? (
+        skill.description ? (
+          <p className="w-full truncate font-mono text-xs text-slate-400">
+            {skill.description}
+          </p>
+        ) : null
+      ) : (
+        <p className="w-full truncate font-mono text-xs text-slate-400">
+          {skill.source_type === "net" ? `${skill.owner}/${skill.repo}` : skill.dir_path}
+          {skill.description ? ` • ${skill.description}` : ""}
+        </p>
+      )}
 
       {updateInProgress && updateTask && (
         <div className="space-y-1.5 pt-2" aria-live="polite">

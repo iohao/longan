@@ -174,6 +174,7 @@ fn run_inner() -> Result<(), Box<dyn std::error::Error>> {
             commands::export_diagnostics,
             commands::log_frontend_event,
             commands::open_skill_dir,
+            commands::open_skill_group_dir,
             commands::open_path,
             commands::export_profile,
             commands::save_profile_file,

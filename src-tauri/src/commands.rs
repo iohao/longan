@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -1804,6 +1805,51 @@ pub fn open_skill_dir(
         .map_err(|e| AppError::Other(e.to_string()))
 }
 
+pub fn resolve_skill_group_dir(
+    paths: &Paths,
+    source_type: &str,
+    owner: Option<&str>,
+    repo: Option<&str>,
+) -> AppResult<PathBuf> {
+    let path = if source_type == "net" {
+        let owner = owner
+            .ok_or_else(|| AppError::InvalidInput("owner is required for net group".into()))?;
+        let repo = repo
+            .ok_or_else(|| AppError::InvalidInput("repo is required for net group".into()))?;
+        validate::validate_segment(owner)?;
+        validate::validate_segment(repo)?;
+        paths.net_dir().join(owner).join(repo)
+    } else {
+        paths.local_dir()
+    };
+    if !path.exists() {
+        return Err(AppError::NotFound(format!(
+            "directory does not exist: {}",
+            path.display()
+        )));
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn open_skill_group_dir(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    source_type: String,
+    owner: Option<String>,
+    repo: Option<String>,
+) -> AppResult<()> {
+    let path = resolve_skill_group_dir(
+        &state.paths,
+        &source_type,
+        owner.as_deref(),
+        repo.as_deref(),
+    )?;
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| AppError::Other(e.to_string()))
+}
+
 #[tauri::command]
 pub fn open_path(app: tauri::AppHandle, path: String) -> AppResult<()> {
     app.opener()
@@ -2217,5 +2263,39 @@ mod tests {
                 "error": null
             })
         );
+    }
+
+    #[test]
+    fn resolve_skill_group_dir_handles_net_and_local_targets() {
+        let temp = tempfile::tempdir().unwrap();
+        let paths = Paths::with_root(temp.path().to_path_buf());
+        paths.ensure_layout().unwrap();
+
+        // Local group directory resolution
+        let local_res = resolve_skill_group_dir(&paths, "local", None, None).unwrap();
+        assert_eq!(local_res, paths.local_dir());
+
+        // Net group directory resolution: fails when repo dir does not exist
+        assert!(matches!(
+            resolve_skill_group_dir(&paths, "net", Some("acme"), Some("repo")),
+            Err(AppError::NotFound(_))
+        ));
+
+        // Net group directory resolution: succeeds when created
+        let net_repo = paths.net_dir().join("acme").join("repo");
+        std::fs::create_dir_all(&net_repo).unwrap();
+        let net_res =
+            resolve_skill_group_dir(&paths, "net", Some("acme"), Some("repo")).unwrap();
+        assert_eq!(net_res, net_repo);
+
+        // Net group fails on missing or invalid segment
+        assert!(matches!(
+            resolve_skill_group_dir(&paths, "net", None, Some("repo")),
+            Err(AppError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            resolve_skill_group_dir(&paths, "net", Some("../escaped"), Some("repo")),
+            Err(AppError::InvalidInput(_))
+        ));
     }
 }

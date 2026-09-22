@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronRight,
-  ExternalLink,
+  FolderOpen,
   Globe,
   HardDrive,
   Loader2,
@@ -11,6 +11,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, errorMessage } from "../../../api";
+import GithubIcon from "../../icons/GithubIcon";
+import HoverActionGroup from "../../ui/HoverActionGroup";
 import type { Skill, SkillUpdateTask } from "../../../types";
 import type { SkillRepoGroup } from "../../../utils/skillGrouping";
 import SkillCard from "./SkillCard";
@@ -61,6 +64,18 @@ const RepoGroupCard = memo(function RepoGroupCard({
     [group.githubUrl],
   );
 
+  const handleOpenDir = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await api.openSkillGroupDir(group.sourceType, group.owner, group.repo);
+      } catch (error) {
+        onActionError(errorMessage(error));
+      }
+    },
+    [group.owner, group.repo, group.sourceType, onActionError],
+  );
+
   const handleUpdateGroup = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -93,7 +108,7 @@ const RepoGroupCard = memo(function RepoGroupCard({
             onToggleCollapse(group.key);
           }
         }}
-        className="group/repo flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-800/90 bg-slate-900/50 px-3.5 py-2.5 transition-colors hover:border-slate-700 hover:bg-slate-900/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+        className="group group/repo flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-800/90 bg-slate-900/50 px-3.5 py-2.5 transition-colors hover:border-slate-700 hover:bg-slate-900/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
       >
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 transition-colors group-hover/repo:text-slate-200">
@@ -116,24 +131,36 @@ const RepoGroupCard = memo(function RepoGroupCard({
             {displayName}
           </span>
 
-          {group.githubUrl && (
-            <button
-              type="button"
-              onClick={handleOpenGithub}
-              title={t("library.openGithub")}
-              aria-label={t("library.openGithub")}
-              className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded text-slate-500 transition-colors hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-            >
-              <ExternalLink className="h-3 w-3" />
-            </button>
-          )}
-
           <span className="shrink-0 rounded-full border border-slate-700/60 bg-slate-800/80 px-2 py-0.5 font-mono text-[11px] text-slate-400">
             {t("library.repoSkillCount", { count: group.skills.length })}
           </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <HoverActionGroup>
+            {group.githubUrl && (
+              <button
+                type="button"
+                onClick={handleOpenGithub}
+                title={t("library.openGithub")}
+                aria-label={t("library.openGithub")}
+                className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800/80 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-100 hover:bg-slate-700/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+              >
+                <GithubIcon className="h-3.5 w-3.5 text-slate-300" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleOpenDir}
+              title={t("library.openLocalDir")}
+              aria-label={t("library.openLocalDir")}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800/80 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-100 hover:bg-slate-700/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+            >
+              <FolderOpen className="h-3.5 w-3.5 text-slate-300" />
+            </button>
+          </HoverActionGroup>
+
           {group.updatableCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
               <Sparkles className="h-3 w-3 text-amber-400" />
@@ -177,6 +204,7 @@ const RepoGroupCard = memo(function RepoGroupCard({
               />
               <SkillCard
                 skill={skill}
+                viewMode="tree"
                 updateTask={updateTasks[skill.id]}
                 updateDisabled={!updateTasks[skill.id] && updatesAtCapacity}
                 onUpdate={onUpdate}

@@ -69,9 +69,15 @@ const mocks = vi.hoisted(() => ({
   skillReferences: vi.fn(),
   deleteSkill: vi.fn(),
   skillReferenceDetails: vi.fn(),
+  openSkillGroupDir: vi.fn(),
+  openUrl: vi.fn(),
   progressListener: null as ((progress: SkillUpdateProgressEvent) => void) | null,
   skillsChangedListeners: [] as Array<() => void>,
   skillsChangedCleanup: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: mocks.openUrl,
 }));
 
 vi.mock("../api", () => ({
@@ -84,6 +90,7 @@ vi.mock("../api", () => ({
     skillReferences: mocks.skillReferences,
     deleteSkill: mocks.deleteSkill,
     skillReferenceDetails: mocks.skillReferenceDetails,
+    openSkillGroupDir: mocks.openSkillGroupDir,
     getSetting: vi.fn(async () => null),
   },
   errorMessage: (error: unknown) => String(error),
@@ -139,6 +146,8 @@ beforeEach(async () => {
   mocks.rescanLocal.mockResolvedValue(skills);
   mocks.skillReferences.mockResolvedValue([[], []]);
   mocks.deleteSkill.mockResolvedValue(undefined);
+  mocks.openSkillGroupDir.mockResolvedValue(undefined);
+  mocks.openUrl.mockResolvedValue(undefined);
   mocks.progressListener = null;
   mocks.skillsChangedListeners = [];
   mocks.skillsChangedCleanup.mockClear();
@@ -536,6 +545,47 @@ describe("InstalledPage", () => {
 
     // All updatable skills in obra/superpowers (ids 1, 2, 3) should be updated
     expect(mocks.updateSkills).toHaveBeenCalledWith([1, 2, 3]);
+  });
+
+  it("renders repo actions on parent group card and triggers them on click", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "obra/superpowers (3)" })).toBeInTheDocument();
+
+    // Click "打开 GitHub 仓库" on the repo group card
+    const githubBtns = screen.getAllByRole("button", { name: "打开 GitHub 仓库" });
+    // Only 1 GitHub button should be in tree view (on the parent group card, none on children)
+    expect(githubBtns).toHaveLength(1);
+    await user.click(githubBtns[0]);
+    expect(mocks.openUrl).toHaveBeenCalledWith("https://github.com/obra/superpowers");
+
+    // Click "打开本地目录" on the repo group card
+    const openDirBtns = screen.getAllByRole("button", { name: "打开本地目录" });
+    // In tree view with skills (obra/superpowers: 3 net skills), only the parent group card has "打开本地目录"
+    expect(openDirBtns).toHaveLength(1);
+    await user.click(openDirBtns[0]);
+    expect(mocks.openSkillGroupDir).toHaveBeenCalledWith("net", "obra", "superpowers");
+  });
+
+  it("omits redundant repo prefix in tree view child cards but retains it in flat view", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole("button", { name: "obra/superpowers (3)" });
+
+    // In tree view, child card subtitle only displays description without repeating owner/repo
+    expect(screen.getByText("Generate ideas")).toBeInTheDocument();
+    expect(screen.queryByText("obra/superpowers • Generate ideas")).not.toBeInTheDocument();
+
+    // Switch to flat view
+    const flatViewBtn = screen.getByRole("button", { name: "平铺视图" });
+    await user.click(flatViewBtn);
+
+    // In flat view, child card subtitle includes owner/repo prefix
+    expect(screen.getByText("obra/superpowers • Generate ideas")).toBeInTheDocument();
+    // And each skill card in flat view has its own open directory button
+    expect(screen.getAllByRole("button", { name: "打开本地目录" })).toHaveLength(3);
   });
 
   it("displays skills grouped and ordered by organization in flat view", async () => {

@@ -20,6 +20,7 @@ export interface SkillActionTarget {
 interface SkillSourceActionsProps {
   skill: SkillActionTarget;
   onError: (message: string) => void;
+  hideRepoActions?: boolean;
   children?: ReactNode;
 }
 
@@ -27,6 +28,7 @@ interface SkillSourceActionsProps {
 export default function SkillSourceActions({
   skill,
   onError,
+  hideRepoActions = false,
   children,
 }: SkillSourceActionsProps) {
   const { t } = useTranslation();
@@ -84,7 +86,7 @@ export default function SkillSourceActions({
         />
       ) : null}
 
-      {isNet ? (
+      {!hideRepoActions && isNet ? (
         <Button
           type="button"
           size="sm"
@@ -96,15 +98,17 @@ export default function SkillSourceActions({
         />
       ) : null}
 
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={openDirectory}
-        title={t("library.openLocalDir")}
-        aria-label={t("library.openLocalDir")}
-        icon={<FolderOpen className="h-3.5 w-3.5 text-slate-300" />}
-      />
+      {!hideRepoActions && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={openDirectory}
+          title={t("library.openLocalDir")}
+          aria-label={t("library.openLocalDir")}
+          icon={<FolderOpen className="h-3.5 w-3.5 text-slate-300" />}
+        />
+      )}
 
       {children}
     </HoverActionGroup>
