@@ -226,7 +226,6 @@ export default function SkillMarketPage({ debugMode }: SkillMarketPageProps) {
         skillId: skill.skillId,
         origin: "github",
         sourcePath: skill.sourcePath,
-        sourceUrl: `${owner}/${repo}/${skill.skillId}`,
         githubSource: `${owner}/${repo}`,
       });
     }

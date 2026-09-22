@@ -15,6 +15,8 @@ export interface SkillActionTarget {
   owner?: string | null;
   repo?: string | null;
   source_url?: string | null;
+  install_source?: "skills_sh" | "github" | "local_import" | "local" | null;
+  source_path?: string | null;
 }
 
 interface SkillSourceActionsProps {
@@ -34,6 +36,7 @@ export default function SkillSourceActions({
   const { t } = useTranslation();
   const sourceUrl = skill.source_url?.trim();
   const isNet = skill.source_type === "net" && Boolean(skill.owner && skill.repo);
+  const hasSkillsShPage = Boolean(sourceUrl && skill.install_source !== "github");
 
   const run = useCallback(
     async (action: () => Promise<void>) => {
@@ -59,9 +62,13 @@ export default function SkillSourceActions({
     (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       if (!skill.owner || !skill.repo) return;
-      void run(() => openUrl(`https://github.com/${skill.owner}/${skill.repo}`));
+      const cleanPath = skill.source_path?.trim().replace(/^\/+|\/+$/g, "");
+      const targetUrl = cleanPath
+        ? `https://github.com/${skill.owner}/${skill.repo}/tree/HEAD/${cleanPath}`
+        : `https://github.com/${skill.owner}/${skill.repo}`;
+      void run(() => openUrl(targetUrl));
     },
-    [run, skill.owner, skill.repo],
+    [run, skill.owner, skill.repo, skill.source_path],
   );
 
   const openDirectory = useCallback(
@@ -74,7 +81,7 @@ export default function SkillSourceActions({
 
   return (
     <HoverActionGroup>
-      {sourceUrl ? (
+      {hasSkillsShPage ? (
         <Button
           type="button"
           size="sm"

@@ -333,7 +333,7 @@ describe("SkillMarketPage install queue", () => {
       "luban",
       "luban-add-table",
       expect.any(String),
-      "focus-creative-games/luban/luban-add-table",
+      undefined,
       "focus-creative-games/luban",
       "ai/skills/luban-add-table",
     );
@@ -342,7 +342,7 @@ describe("SkillMarketPage install queue", () => {
       "luban",
       "luban-excel-fill",
       expect.any(String),
-      "focus-creative-games/luban/luban-excel-fill",
+      undefined,
       "focus-creative-games/luban",
       "ai/skills/luban-excel-fill",
     );

@@ -101,4 +101,44 @@ describe("SkillSourceActions", () => {
     expect(screen.queryByRole("button", { name: "Open Local Directory" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete action" })).toBeInTheDocument();
   });
+
+  it("navigates to the subdirectory on GitHub when source_path is present", async () => {
+    const user = userEvent.setup();
+    const githubSkill = {
+      id: 10,
+      source_type: "net" as const,
+      owner: "focus-creative-games",
+      repo: "luban",
+      install_source: "github" as const,
+      source_path: "ai/skills/luban-add-table",
+    };
+
+    render(<SkillSourceActions skill={githubSkill} onError={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Open Skills Source Page" })).not.toBeInTheDocument();
+    const githubButton = screen.getByRole("button", { name: "Open GitHub Repository" });
+    await user.click(githubButton);
+
+    await waitFor(() => {
+      expect(mocks.openUrl).toHaveBeenCalledWith(
+        "https://github.com/focus-creative-games/luban/tree/HEAD/ai/skills/luban-add-table",
+      );
+    });
+  });
+
+  it("does not show skills.sh button when install_source is github even if source_url is populated", () => {
+    const githubSkillWithLegacySourceUrl = {
+      id: 11,
+      source_type: "net" as const,
+      owner: "focus-creative-games",
+      repo: "luban",
+      source_url: "focus-creative-games/luban/luban-add-table",
+      install_source: "github" as const,
+    };
+
+    render(<SkillSourceActions skill={githubSkillWithLegacySourceUrl} onError={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Open Skills Source Page" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open GitHub Repository" })).toBeInTheDocument();
+  });
 });
