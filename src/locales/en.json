@@ -182,7 +182,15 @@
     "updateAllBtn": "Update all {{count}}",
     "batchUpdatePrompt": "{{count}} skill(s) have updates available. Click the \"Batch Update\" button in the top-right corner to upgrade quickly",
     "referenceCount": "Referenced {{count}} time(s)",
-    "viewReferences": "View references for skill {{name}}"
+    "viewReferences": "View references for skill {{name}}",
+    "viewModeTree": "Tree View",
+    "viewModeFlat": "Flat View",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "localGroup": "Local Skills",
+    "repoSkillCount": "{{count}} skills",
+    "updateRepo": "Update Repo",
+    "updatableCount": "{{count}} updatable"
   },
   "explore": {
     "welcomeTitle": "Get started with Longan",

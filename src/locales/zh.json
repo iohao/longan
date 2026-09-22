@@ -182,7 +182,15 @@
     "updateAllBtn": "一键更新所有 {{count}} 个",
     "batchUpdatePrompt": "发现 {{count}} 个可更新的技能，点击右上角「一键批量更新」快速升级",
     "referenceCount": "被引用 {{count}} 次",
-    "viewReferences": "查看 Skill「{{name}}」的引用"
+    "viewReferences": "查看 Skill「{{name}}」的引用",
+    "viewModeTree": "树状视图",
+    "viewModeFlat": "平铺视图",
+    "expandAll": "全部展开",
+    "collapseAll": "全部收起",
+    "localGroup": "本地技能",
+    "repoSkillCount": "{{count}} 个技能",
+    "updateRepo": "更新仓库",
+    "updatableCount": "{{count}} 项可更新"
   },
   "explore": {
     "welcomeTitle": "开始使用 Longan",

@@ -309,28 +309,24 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
     }
   }, [onSkillsChanged, runUpdateRequest, t]);
 
-  const updateAllUpdatableSkills = useCallback(async () => {
+  const runBatchUpdate = useCallback(async (targetSkills: ListedSkill[]) => {
     if (batchUpdatingRef.current || lockedUpdateIds.current.size > 0) return;
-
-    const updatableSkills = skills.filter(
-      (skill) => skill.status === "update_available" && skill.source_type === "net"
-    );
-    if (updatableSkills.length === 0) return;
+    if (targetSkills.length === 0) return;
 
     batchUpdatingRef.current = true;
     setBatchUpdating(true);
-    setBatchSkillIds(updatableSkills.map((skill) => skill.id));
+    setBatchSkillIds(targetSkills.map((skill) => skill.id));
     setInstalledError(null);
     setNotice(null);
-    for (const skill of updatableSkills) lockedUpdateIds.current.add(skill.id);
+    for (const skill of targetSkills) lockedUpdateIds.current.add(skill.id);
     setUpdateTasks((current) => {
       const next = { ...current };
-      for (const skill of updatableSkills) next[skill.id] = queuedTask(skill);
+      for (const skill of targetSkills) next[skill.id] = queuedTask(skill);
       return next;
     });
 
     try {
-      const updatedSkills = await api.updateSkills(updatableSkills.map((skill) => skill.id));
+      const updatedSkills = await api.updateSkills(targetSkills.map((skill) => skill.id));
       const updatedById = new Map(updatedSkills.map((skill) => [skill.id, skill]));
       setSkills((current) =>
         current.map((skill) => {
@@ -340,7 +336,7 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
       );
       setUpdateTasks((current) => {
         const next = { ...current };
-        for (const skill of updatableSkills) {
+        for (const skill of targetSkills) {
           const task = current[skill.id] ?? queuedTask(skill);
           next[skill.id] = updatedById.has(skill.id)
             ? {
@@ -366,7 +362,7 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
       setInstalledError(message);
       setUpdateTasks((current) => {
         const next = { ...current };
-        for (const skill of updatableSkills) {
+        for (const skill of targetSkills) {
           const task = current[skill.id] ?? queuedTask(skill);
           next[skill.id] = task.status === "success" || task.status === "failed"
             ? task
@@ -381,12 +377,27 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
       });
     }
 
-    for (const skill of updatableSkills) lockedUpdateIds.current.delete(skill.id);
+    for (const skill of targetSkills) lockedUpdateIds.current.delete(skill.id);
     batchUpdatingRef.current = false;
     setBatchUpdating(false);
     await reloadSkills();
     onSkillsChanged?.();
-  }, [onSkillsChanged, reloadSkills, skills, t]);
+  }, [onSkillsChanged, reloadSkills, t]);
+
+  const updateAllUpdatableSkills = useCallback(async () => {
+    const updatableSkills = skills.filter(
+      (skill) => skill.status === "update_available" && skill.source_type === "net"
+    );
+    await runBatchUpdate(updatableSkills);
+  }, [runBatchUpdate, skills]);
+
+  const updateSkillsGroup = useCallback(async (targetIds: number[]) => {
+    const targetSet = new Set(targetIds);
+    const targetSkills = skills.filter(
+      (skill) => targetSet.has(skill.id) && skill.status === "update_available" && skill.source_type === "net"
+    );
+    await runBatchUpdate(targetSkills);
+  }, [runBatchUpdate, skills]);
 
   const askDelete = useCallback(async (skill: Skill) => {
     setDeleting(skill);
@@ -527,6 +538,7 @@ export default function InstalledPage({ onSkillsChanged, onGoExplore }: Installe
         updateTasks={updateTasks}
         updatesAtCapacity={updatesAtCapacity}
         onUpdate={(skill) => void update(skill)}
+        onUpdateGroup={(skillIds) => void updateSkillsGroup(skillIds)}
         onDelete={askDelete}
         onViewReferences={setViewingReferences}
         onGoExplore={() => onGoExplore?.()}

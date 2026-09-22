@@ -461,4 +461,157 @@ describe("InstalledPage", () => {
     expect(mocks.rescanLocal).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("已完成本地 Skill 扫描")).toBeInTheDocument();
   });
+
+  it("groups skills by repository in tree view and allows collapsing and expanding", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    // Group header should display the repo name and skill count badge
+    const repoHeader = await screen.findByRole("button", { name: "obra/superpowers (3)" });
+    expect(repoHeader).toBeInTheDocument();
+    expect(repoHeader).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("brainstorming")).toBeInTheDocument();
+    expect(screen.getByText("tdd")).toBeInTheDocument();
+    expect(screen.getByText("debugging")).toBeInTheDocument();
+
+    // Collapse the group
+    await user.click(repoHeader);
+    expect(repoHeader).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("brainstorming")).not.toBeInTheDocument();
+
+    // Expand the group again
+    await user.click(repoHeader);
+    expect(repoHeader).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("brainstorming")).toBeInTheDocument();
+  });
+
+  it("supports collapsing and expanding all groups via the toolbar button", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const repoHeader = await screen.findByRole("button", { name: "obra/superpowers (3)" });
+    expect(repoHeader).toHaveAttribute("aria-expanded", "true");
+
+    // Click "全部收起"
+    const toggleAllBtn = screen.getByRole("button", { name: "全部收起" });
+    await user.click(toggleAllBtn);
+
+    expect(repoHeader).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("brainstorming")).not.toBeInTheDocument();
+
+    // Click "全部展开"
+    await user.click(screen.getByRole("button", { name: "全部展开" }));
+    expect(repoHeader).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("brainstorming")).toBeInTheDocument();
+  });
+
+  it("allows switching between tree view and flat list view", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "obra/superpowers (3)" })).toBeInTheDocument();
+
+    // Switch to flat view
+    const flatViewBtn = screen.getByRole("button", { name: "平铺视图" });
+    await user.click(flatViewBtn);
+
+    // In flat view, repo group header button is not rendered
+    expect(screen.queryByRole("button", { name: "obra/superpowers (3)" })).not.toBeInTheDocument();
+    // Skills are still rendered directly
+    expect(screen.getByText("brainstorming")).toBeInTheDocument();
+    expect(screen.getByText("tdd")).toBeInTheDocument();
+
+    // Switch back to tree view
+    const treeViewBtn = screen.getByRole("button", { name: "树状视图" });
+    await user.click(treeViewBtn);
+    expect(await screen.findByRole("button", { name: "obra/superpowers (3)" })).toBeInTheDocument();
+  });
+
+  it("triggers repository-level batch update when clicking update repo button", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const updateRepoBtn = await screen.findByRole("button", { name: "更新仓库" });
+    await user.click(updateRepoBtn);
+
+    // All updatable skills in obra/superpowers (ids 1, 2, 3) should be updated
+    expect(mocks.updateSkills).toHaveBeenCalledWith([1, 2, 3]);
+  });
+
+  it("displays skills grouped and ordered by organization in flat view", async () => {
+    const multiOrgSkills: ListedSkill[] = [
+      {
+        id: 1,
+        name: "golang-testing",
+        source_type: "net",
+        owner: "samber",
+        repo: "cc-skills-golang",
+        dir_path: "net/samber/cc-skills-golang/golang-testing",
+        description: "Testing Go",
+        latest_sha: "sha1",
+        status: "ok",
+        updated_at: "2026-07-01",
+        reference_count: 0,
+      },
+      {
+        id: 2,
+        name: "alpha-query",
+        source_type: "net",
+        owner: "tanstack",
+        repo: "query-skills",
+        dir_path: "net/tanstack/query-skills/alpha-query",
+        description: "Alpha Query",
+        latest_sha: "sha2",
+        status: "ok",
+        updated_at: "2026-07-02",
+        reference_count: 0,
+      },
+      {
+        id: 3,
+        name: "golang-security",
+        source_type: "net",
+        owner: "samber",
+        repo: "cc-skills-golang",
+        dir_path: "net/samber/cc-skills-golang/golang-security",
+        description: "Security Go",
+        latest_sha: "sha3",
+        status: "ok",
+        updated_at: "2026-07-03",
+        reference_count: 0,
+      },
+      {
+        id: 4,
+        name: "react-query",
+        source_type: "net",
+        owner: "tanstack",
+        repo: "query-skills",
+        dir_path: "net/tanstack/query-skills/react-query",
+        description: "React Query",
+        latest_sha: "sha4",
+        status: "ok",
+        updated_at: "2026-07-04",
+        reference_count: 0,
+      },
+    ];
+
+    mocks.listSkills.mockResolvedValue(multiOrgSkills);
+    const user = userEvent.setup();
+    renderPage();
+
+    // Switch to flat view
+    const flatViewBtn = await screen.findByRole("button", { name: "平铺视图" });
+    await user.click(flatViewBtn);
+
+    // Verify skill headings order in the flat list
+    const skillHeadings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    // samber/cc-skills-golang skills are grouped together (golang-security, golang-testing),
+    // followed by tanstack/query-skills (alpha-query, react-query)
+    expect(skillHeadings).toEqual([
+      "golang-security",
+      "golang-testing",
+      "alpha-query",
+      "react-query",
+    ]);
+  });
 });
+

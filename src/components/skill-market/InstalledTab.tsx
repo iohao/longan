@@ -1,6 +1,20 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, CheckCircle2, Globe, HardDrive, Loader2, Search, Sparkles, X, XCircle } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  Globe,
+  HardDrive,
+  LayoutList,
+  Loader2,
+  Search,
+  Sparkles,
+  X,
+  XCircle,
+} from "lucide-react";
 import type { ListedSkill, Skill, SkillUpdateTask } from "../../types";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
@@ -9,10 +23,12 @@ import Alert from "../ui/Alert";
 import Card from "../ui/Card";
 import VirtualizedList from "../ui/VirtualizedList";
 import SkillCard from "./components/SkillCard";
-import { parseSkillUrl } from "../../utils/url";
+import RepoGroupCard from "./components/RepoGroupCard";
 import { useDebounce } from "../../utils/debounce";
+import { groupSkillsByRepo } from "../../utils/skillGrouping";
 
 export type InstalledFilterKey = "all" | "net" | "local";
+export type InstalledViewMode = "tree" | "flat";
 
 interface InstalledTabProps {
   skills: ListedSkill[];
@@ -27,6 +43,7 @@ interface InstalledTabProps {
   updateTasks: Record<number, SkillUpdateTask>;
   updatesAtCapacity: boolean;
   onUpdate: (skill: Skill) => void;
+  onUpdateGroup?: (skillIds: number[]) => void;
   onDelete: (skill: Skill) => void;
   onGoExplore: () => void;
   batchUpdating: boolean;
@@ -36,7 +53,7 @@ interface InstalledTabProps {
 }
 
 /**
- * 已安装技能标签页 - 搜索/分类筛选/技能列表
+ * 已安装技能标签页 - 搜索/分类筛选/技能列表/树状与平铺视图
  */
 export default function InstalledTab({
   skills,
@@ -51,6 +68,7 @@ export default function InstalledTab({
   updateTasks,
   updatesAtCapacity,
   onUpdate,
+  onUpdateGroup,
   onDelete,
   onGoExplore,
   batchUpdating,
@@ -59,6 +77,25 @@ export default function InstalledTab({
   onViewReferences,
 }: InstalledTabProps) {
   const { t } = useTranslation();
+
+  const [viewMode, setViewMode] = useState<InstalledViewMode>(() => {
+    try {
+      return localStorage.getItem("longan_installed_view_mode") === "flat" ? "flat" : "tree";
+    } catch {
+      return "tree";
+    }
+  });
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleViewMode = useCallback((mode: InstalledViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("longan_installed_view_mode", mode);
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
 
   const updatableCount = useMemo(
     () => skills.filter((s) => s.status === "update_available").length,
@@ -89,60 +126,50 @@ export default function InstalledTab({
         (task.phase === "downloading" && task.totalBytes === null))
   );
 
-  // 🔥 PERFORMANCE: 防抖搜索 + useMemo 缓存过滤排序结果
+  // 🔥 PERFORMANCE: 防抖搜索 + useMemo 缓存过滤与按组织分组排序结果
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  const filteredSkills = useMemo(() => {
-    return skills
-      .filter((s) => {
-        // Category Filter
-        if (filter === "net" && s.source_type !== "net") return false;
-        if (filter === "local" && s.source_type !== "local") return false;
-
-        // Search Query Filter
-        if (!debouncedQuery.trim()) return true;
-        const parsed = parseSkillUrl(debouncedQuery);
-        const q = parsed.cleanQuery.toLowerCase().trim();
-        const rawQ = debouncedQuery.toLowerCase().trim();
-        const targetId = parsed.targetId?.toLowerCase();
-
-        if (targetId) {
-          const fullPath = s.owner && s.repo ? `${s.owner}/${s.repo}/${s.name}`.toLowerCase() : "";
-          if (
-            fullPath === targetId ||
-            s.dir_path.toLowerCase().includes(targetId) ||
-            (s.owner && s.repo && `${s.owner}/${s.repo}`.toLowerCase() === targetId)
-          ) {
-            return true;
-          }
-        }
-
-        return (
-          s.name.toLowerCase().includes(q) ||
-          (s.description && s.description.toLowerCase().includes(q)) ||
-          s.dir_path.toLowerCase().includes(q) ||
-          (s.owner && s.owner.toLowerCase().includes(q)) ||
-          (s.repo && s.repo.toLowerCase().includes(q)) ||
-          s.name.toLowerCase().includes(rawQ) ||
-          (s.description && s.description.toLowerCase().includes(rawQ)) ||
-          s.dir_path.toLowerCase().includes(rawQ)
-        );
-      })
-      .sort((a, b) => {
-        // 1. Update available status comes first
-        const aUp = a.status === "update_available" ? 0 : 1;
-        const bUp = b.status === "update_available" ? 0 : 1;
-        if (aUp !== bUp) return aUp - bUp;
-
-        // 2. Network skills next
-        const aNet = a.source_type === "net" ? 0 : 1;
-        const bNet = b.source_type === "net" ? 0 : 1;
-        if (aNet !== bNet) return aNet - bNet;
-
-        // 3. Alphabetical name
-        return a.name.localeCompare(b.name);
-      });
+  const groupedSkills = useMemo(() => {
+    return groupSkillsByRepo(skills, filter, debouncedQuery);
   }, [skills, filter, debouncedQuery]);
+
+  // 平铺视图按组织排名：展平已按组织排序的分组数据，确保同组织 Skill 显示在一起（优先显示同组织）
+  const filteredSkills = useMemo(() => {
+    return groupedSkills.flatMap((group) => group.skills);
+  }, [groupedSkills]);
+
+  const allCollapsed = useMemo(
+    () => groupedSkills.length > 0 && groupedSkills.every((g) => collapsedGroups.has(g.key)),
+    [groupedSkills, collapsedGroups],
+  );
+
+  const handleToggleCollapse = useCallback((groupKey: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleExpandCollapseAll = useCallback(() => {
+    if (allCollapsed) {
+      setCollapsedGroups(new Set());
+    } else {
+      setCollapsedGroups(new Set(groupedSkills.map((g) => g.key)));
+    }
+  }, [allCollapsed, groupedSkills]);
+
+  const isGroupCollapsed = useCallback(
+    (groupKey: string) => {
+      if (debouncedQuery.trim()) return false;
+      return collapsedGroups.has(groupKey);
+    },
+    [debouncedQuery, collapsedGroups],
+  );
 
   return (
     <div className="space-y-6">
@@ -170,6 +197,66 @@ export default function InstalledTab({
               />
             )}
           </div>
+
+          {skills.length > 0 && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* Expand / Collapse All (only in Tree mode) */}
+              {viewMode === "tree" && groupedSkills.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleToggleExpandCollapseAll}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 transition-colors cursor-pointer"
+                  title={allCollapsed ? t("library.expandAll") : t("library.collapseAll")}
+                  aria-label={allCollapsed ? t("library.expandAll") : t("library.collapseAll")}
+                >
+                  {allCollapsed ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                  <span>{allCollapsed ? t("library.expandAll") : t("library.collapseAll")}</span>
+                </button>
+              )}
+
+              {/* View Mode Switcher */}
+              <div
+                role="group"
+                aria-label="View Mode"
+                className="inline-flex rounded-lg border border-slate-800/80 bg-slate-950/50 p-0.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleViewMode("tree")}
+                  aria-pressed={viewMode === "tree"}
+                  aria-label={t("library.viewModeTree")}
+                  title={t("library.viewModeTree")}
+                  className={`flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors cursor-pointer ${
+                    viewMode === "tree"
+                      ? "bg-slate-800 text-emerald-400 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <FolderTree className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("library.viewModeTree")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleViewMode("flat")}
+                  aria-pressed={viewMode === "flat"}
+                  aria-label={t("library.viewModeFlat")}
+                  title={t("library.viewModeFlat")}
+                  className={`flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors cursor-pointer ${
+                    viewMode === "flat"
+                      ? "bg-slate-800 text-emerald-400 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("library.viewModeFlat")}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Filter Chips Bar */}
@@ -344,7 +431,7 @@ export default function InstalledTab({
             </Button>
           }
         />
-      ) : filteredSkills.length === 0 ? (
+      ) : (viewMode === "tree" ? groupedSkills.length === 0 : filteredSkills.length === 0) ? (
         <EmptyState
           icon={<Search className="w-8 h-8 text-amber-400" />}
           title={t("library.noSearchResults")}
@@ -364,6 +451,25 @@ export default function InstalledTab({
             ) : undefined
           }
         />
+      ) : viewMode === "tree" ? (
+        <div className="space-y-4" role="list" aria-label={t("nav.installed")}>
+          {groupedSkills.map((group) => (
+            <RepoGroupCard
+              key={group.key}
+              group={group}
+              isCollapsed={isGroupCollapsed(group.key)}
+              onToggleCollapse={handleToggleCollapse}
+              updateTasks={updateTasks}
+              updatesAtCapacity={updatesAtCapacity}
+              onUpdate={onUpdate}
+              onUpdateGroup={onUpdateGroup}
+              onDelete={onDelete}
+              onViewReferences={onViewReferences}
+              onActionError={onActionError}
+              batchUpdating={batchUpdating}
+            />
+          ))}
+        </div>
       ) : (
         <VirtualizedList
           items={filteredSkills}
