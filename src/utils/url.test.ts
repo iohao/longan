@@ -17,8 +17,30 @@ describe("parseSkillUrl", () => {
     expect(p.isGitHubUrl).toBe(true);
     expect(p.owner).toBe("obra");
     expect(p.repo).toBe("superpowers");
+    expect(p.branch).toBe("main");
+    expect(p.subpath).toBe("skills/tdd");
+    expect(p.skillId).toBe("tdd");
+    expect(p.targetId).toBe("obra/superpowers/tdd");
+  });
+
+  it("parses nested multi-skill directory url", () => {
+    const p = parseSkillUrl("https://github.com/focus-creative-games/luban/tree/main/ai/skills");
+    expect(p.isGitHubUrl).toBe(true);
+    expect(p.owner).toBe("focus-creative-games");
+    expect(p.repo).toBe("luban");
+    expect(p.branch).toBe("main");
+    expect(p.subpath).toBe("ai/skills");
     expect(p.skillId).toBe("skills");
-    expect(p.targetId).toBe("obra/superpowers/skills");
+  });
+
+  it("parses nested single-skill url", () => {
+    const p = parseSkillUrl("https://github.com/focus-creative-games/luban/tree/main/ai/skills/luban-add-table");
+    expect(p.isGitHubUrl).toBe(true);
+    expect(p.owner).toBe("focus-creative-games");
+    expect(p.repo).toBe("luban");
+    expect(p.branch).toBe("main");
+    expect(p.subpath).toBe("ai/skills/luban-add-table");
+    expect(p.skillId).toBe("luban-add-table");
   });
 
   it("parses owner/repo/skill github url", () => {

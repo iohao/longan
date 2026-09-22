@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   installSkill: vi.fn(),
   cancelSkillInstall: vi.fn(),
   searchRegistry: vi.fn(),
+  inspectGithubSkills: vi.fn(),
   progressListener: null as ((progress: SkillInstallProgressEvent) => void) | null,
   skillsChangedListener: null as (() => void) | null,
 }));
@@ -31,6 +32,7 @@ vi.mock("../api", () => ({
     installSkill: mocks.installSkill,
     cancelSkillInstall: mocks.cancelSkillInstall,
     searchRegistry: mocks.searchRegistry,
+    inspectGithubSkills: mocks.inspectGithubSkills,
     previewLocalSkill: vi.fn(),
     importLocalSkill: vi.fn(),
     getSetting: vi.fn(async () => null),
@@ -79,6 +81,7 @@ beforeEach(async () => {
   mocks.installSkill.mockResolvedValue(installedSkill);
   mocks.cancelSkillInstall.mockResolvedValue(true);
   mocks.searchRegistry.mockResolvedValue([]);
+  mocks.inspectGithubSkills.mockResolvedValue([]);
   mocks.progressListener = null;
   mocks.skillsChangedListener = null;
   let uuid = 0;
@@ -222,6 +225,7 @@ describe("SkillMarketPage install queue", () => {
       expect.any(String),
       undefined,
       undefined,
+      undefined,
     ));
     expect(screen.getByRole("heading", { name: "skill" })).toBeInTheDocument();
 
@@ -284,4 +288,64 @@ describe("SkillMarketPage install queue", () => {
 
     act(() => request.reject(new Error("network error")));
   });
+
+  it("discovers multiple skills from GitHub directory and allows batch installation", async () => {
+    mocks.inspectGithubSkills.mockResolvedValue([
+      {
+        skillId: "luban-add-table",
+        name: "Luban Add Table",
+        description: "Add table skill",
+        sourcePath: "ai/skills/luban-add-table",
+        installed: false,
+      },
+      {
+        skillId: "luban-excel-fill",
+        name: "Luban Excel Fill",
+        description: "Excel fill skill",
+        sourcePath: "ai/skills/luban-excel-fill",
+        installed: false,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderMarket();
+
+    await user.click(screen.getByRole("button", { name: "GitHub 安装" }));
+    const input = screen.getByPlaceholderText("https://github.com/owner/repo/tree/main/skill-id");
+    await user.type(input, "https://github.com/focus-creative-games/luban/tree/main/ai/skills");
+
+    await waitFor(() => expect(mocks.inspectGithubSkills).toHaveBeenCalledWith(
+      "focus-creative-games",
+      "luban",
+      "ai/skills",
+    ));
+
+    expect(await screen.findByText("检测到 2 个可用技能")).toBeInTheDocument();
+    expect(screen.getByText("Luban Add Table")).toBeInTheDocument();
+    expect(screen.getByText("Luban Excel Fill")).toBeInTheDocument();
+
+    const batchInstallButtons = screen.getAllByRole("button", { name: "批量安装 (2)" });
+    expect(batchInstallButtons.length).toBeGreaterThan(0);
+    await user.click(batchInstallButtons[0]);
+
+    await waitFor(() => expect(mocks.installSkill).toHaveBeenCalledTimes(2));
+    expect(mocks.installSkill).toHaveBeenCalledWith(
+      "focus-creative-games",
+      "luban",
+      "luban-add-table",
+      expect.any(String),
+      "focus-creative-games/luban/luban-add-table",
+      "focus-creative-games/luban",
+      "ai/skills/luban-add-table",
+    );
+    expect(mocks.installSkill).toHaveBeenCalledWith(
+      "focus-creative-games",
+      "luban",
+      "luban-excel-fill",
+      expect.any(String),
+      "focus-creative-games/luban/luban-excel-fill",
+      "focus-creative-games/luban",
+      "ai/skills/luban-excel-fill",
+    );
+  });
 });
+

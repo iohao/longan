@@ -198,6 +198,14 @@ export type SkillInstallTaskStatus =
   | "failed"
   | "cancelled";
 
+export interface DiscoveredSkill {
+  skillId: string;
+  name: string;
+  description: string | null;
+  sourcePath: string;
+  installed: boolean;
+}
+
 export interface SkillInstallRequest {
   installKey: string;
   sourceId: string;
@@ -208,6 +216,7 @@ export interface SkillInstallRequest {
   origin: "explore" | "github";
   sourceUrl?: string;
   githubSource?: string;
+  sourcePath?: string;
 }
 
 export interface SkillInstallTask extends SkillInstallRequest {

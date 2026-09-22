@@ -6,6 +6,8 @@ export interface ParsedSkillQuery {
   owner?: string;
   repo?: string;
   skillId?: string;
+  subpath?: string;
+  branch?: string;
 }
 
 export interface ParsedGitHubInput {
@@ -15,6 +17,8 @@ export interface ParsedGitHubInput {
   skillId: string;
   source: string; // e.g. "owner/repo"
   fullId: string; // e.g. "owner/repo/skillId"
+  subpath?: string;
+  branch?: string;
 }
 
 /**
@@ -72,8 +76,10 @@ export function parseSkillUrl(input: string): ParsedSkillQuery {
         if (treeIdx !== -1) {
           const owner = segments[0];
           const repo = segments[1];
+          const branch = segments[treeIdx + 1];
           const pathSegments = segments.slice(treeIdx + 2); // path after branch name
-          const skillId = explicitSkillId || pathSegments[0] || repo;
+          const subpath = pathSegments.join("/");
+          const skillId = explicitSkillId || (pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : undefined) || repo;
           const targetId = `${owner}/${repo}/${skillId}`;
           return {
             isUrl: true,
@@ -83,11 +89,15 @@ export function parseSkillUrl(input: string): ParsedSkillQuery {
             owner,
             repo,
             skillId,
+            subpath: subpath || undefined,
+            branch,
           };
         } else if (segments.length >= 3) {
           const owner = segments[0];
           const repo = segments[1];
-          const skillId = explicitSkillId || segments[2];
+          const pathSegments = segments.slice(2);
+          const subpath = pathSegments.join("/");
+          const skillId = explicitSkillId || pathSegments[pathSegments.length - 1];
           const targetId = `${owner}/${repo}/${skillId}`;
           return {
             isUrl: true,
@@ -97,6 +107,7 @@ export function parseSkillUrl(input: string): ParsedSkillQuery {
             owner,
             repo,
             skillId,
+            subpath: subpath || undefined,
           };
         } else if (segments.length === 2) {
           const owner = segments[0];
@@ -204,6 +215,8 @@ export function parseGitHubInput(input: string): ParsedGitHubInput | null {
       skillId,
       source: `${parsed.owner}/${parsed.repo}`,
       fullId: `${parsed.owner}/${parsed.repo}/${skillId}`,
+      subpath: parsed.subpath,
+      branch: parsed.branch,
     };
   }
 

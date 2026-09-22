@@ -247,3 +247,15 @@ pub struct ImportResult {
     pub unresolved_preset_skills: Vec<String>,
     pub error: Option<String>,
 }
+
+/// A skill discovered when inspecting a GitHub repository or subpath.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoveredSkill {
+    pub skill_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub source_path: String,
+    pub installed: bool,
+}
+

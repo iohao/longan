@@ -9,6 +9,7 @@ use tar::{Archive, EntryType};
 
 use crate::db::repo;
 use crate::error::{AppError, AppResult};
+use crate::models::DiscoveredSkill;
 use crate::paths::Paths;
 use crate::services::git_cache;
 use crate::services::github;
@@ -827,6 +828,101 @@ pub fn find_skill_dir(root: &Path, skill_id: &str) -> Option<PathBuf> {
     }
 }
 
+fn discover_archive_skills(
+    extract_root: &Path,
+    subpath: Option<&str>,
+    repo_name: &str,
+) -> AppResult<Vec<git_cache::DiscoveredSkillData>> {
+    let mut skills = Vec::new();
+    let Some(root) = repository_root(extract_root) else {
+        return Ok(skills);
+    };
+    let normalized_sub = subpath
+        .map(|s| s.trim_matches('/'))
+        .filter(|s| !s.is_empty());
+
+    let mut stack = vec![root.clone()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue; };
+        let mut is_skill = false;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let file_name = path.file_name().and_then(|f| f.to_str()).unwrap_or("");
+            if file_name.starts_with('.') {
+                continue;
+            }
+            if path.is_dir() {
+                stack.push(path);
+            } else if file_name.eq_ignore_ascii_case("SKILL.md") {
+                is_skill = true;
+            }
+        }
+        if is_skill {
+            let Ok(rel) = dir.strip_prefix(&root) else { continue; };
+            let path_str = rel.to_string_lossy().replace('\\', "/");
+            let matches_subpath = match normalized_sub {
+                Some(sub) => path_str == sub || path_str.starts_with(&format!("{sub}/")),
+                None => true,
+            };
+            if matches_subpath {
+                let (fm_name, fm_desc) = scanner::parse_skill_md(&dir);
+                let dir_name = path_str.rsplit('/').next().unwrap_or("");
+                let skill_id = if dir_name.is_empty() {
+                    repo_name.to_string()
+                } else {
+                    dir_name.to_string()
+                };
+                let name = fm_name
+                    .and_then(|n| validate::sanitize_link_name(&n))
+                    .unwrap_or_else(|| skill_id.clone());
+                skills.push(git_cache::DiscoveredSkillData {
+                    skill_id,
+                    name,
+                    description: fm_desc,
+                    source_path: path_str,
+                });
+            }
+        }
+    }
+    Ok(skills)
+}
+
+pub fn discover_skills_in_repository(
+    conn: &Connection,
+    owner: &str,
+    repo_name: &str,
+    repository: &DownloadedRepository,
+    subpath: Option<&str>,
+) -> AppResult<Vec<DiscoveredSkill>> {
+    let raw_skills = match &repository.source {
+        RepositorySource::Git(cached) => {
+            git_cache::discover_skills(cached, subpath, repo_name)
+                .map_err(|e| map_skill_export_error(e, owner, repo_name, "discovery"))?
+        }
+        RepositorySource::Archive { extract_root, .. } => {
+            discover_archive_skills(extract_root, subpath, repo_name)?
+        }
+    };
+
+    let mut discovered = Vec::new();
+    for item in raw_skills {
+        let target_dir = format!("net/{owner}/{repo_name}/{}", item.skill_id);
+        let installed = repo::find_skill_by_dir_path(conn, &target_dir)
+            .map(|s| s.is_some())
+            .unwrap_or(false);
+        discovered.push(DiscoveredSkill {
+            skill_id: item.skill_id,
+            name: item.name,
+            description: item.description,
+            source_path: item.source_path,
+            installed,
+        });
+    }
+
+    discovered.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(discovered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1033,4 +1129,27 @@ mod tests {
         assert!(dest.join("repo/file.txt").is_file());
         assert!(std::fs::symlink_metadata(dest.join("repo/leak")).is_err());
     }
+
+    #[test]
+    fn discovers_skills_in_archive_tree() {
+        let tmp = tempfile::tempdir().unwrap();
+        let extract = tmp.path().join("extract");
+        let repo_root = extract.join("repo-123");
+        make_skill(&repo_root, "ai/skills/skill-a", Some("Skill A"));
+        make_skill(&repo_root, "ai/skills/skill-b", Some("Skill B"));
+        make_skill(&repo_root, "other/skill-c", Some("Skill C"));
+
+        let all = discover_archive_skills(&extract, None, "repo").unwrap();
+        assert_eq!(all.len(), 3);
+
+        let filtered = discover_archive_skills(&extract, Some("ai/skills"), "repo").unwrap();
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().any(|s| s.skill_id == "skill-a"));
+        assert!(filtered.iter().any(|s| s.skill_id == "skill-b"));
+
+        let exact = discover_archive_skills(&extract, Some("ai/skills/skill-a"), "repo").unwrap();
+        assert_eq!(exact.len(), 1);
+        assert_eq!(exact[0].name, "Skill A");
+    }
 }
+

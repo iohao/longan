@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Store, Sparkles, HardDrive } from "lucide-react";
 import { api, errorMessage, listenForSkillsChanged } from "../api";
-import type { LocalSkillPreview, RegistrySkill, Skill } from "../types";
+import type { DiscoveredSkill, LocalSkillPreview, RegistrySkill, Skill } from "../types";
 import GithubIcon from "../components/icons/GithubIcon";
 import TabNavigation from "../components/skill-market/TabNavigation";
 import ExploreTab from "../components/skill-market/ExploreTab";
@@ -210,9 +210,27 @@ export default function SkillMarketPage({ debugMode }: SkillMarketPageProps) {
       repoName: parsed.repo,
       skillId: parsed.skillId,
       origin: "github",
+      sourcePath: parsed.subpath,
     });
     setGithubUrlInput("");
   }
+
+  const installBatchFromGithub = useCallback((skills: DiscoveredSkill[], owner: string, repo: string) => {
+    for (const skill of skills) {
+      enqueueInstall({
+        installKey: `${owner}/${repo}/${skill.skillId}`.toLowerCase(),
+        sourceId: `${owner}/${repo}/${skill.skillId}`,
+        name: skill.name,
+        owner,
+        repoName: repo,
+        skillId: skill.skillId,
+        origin: "github",
+        sourcePath: skill.sourcePath,
+        sourceUrl: `${owner}/${repo}/${skill.skillId}`,
+        githubSource: `${owner}/${repo}`,
+      });
+    }
+  }, [enqueueInstall]);
 
   async function pickLocalFolder() {
     const picked = await open({ directory: true, multiple: false });
@@ -318,6 +336,7 @@ export default function SkillMarketPage({ debugMode }: SkillMarketPageProps) {
           urlInput={githubUrlInput}
           setUrlInput={setGithubUrlInput}
           onInstall={installFromGithubDirectly}
+          onBatchInstall={installBatchFromGithub}
         />
       )}
 

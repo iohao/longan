@@ -37,6 +37,23 @@ describe("api IPC wrappers", () => {
       operationId: "operation-1",
       sourceUrl: "o/r/s",
       githubSource: undefined,
+      sourcePath: undefined,
+    });
+  });
+
+  it("maps inspectGithubSkills to the inspect_github_skills command", async () => {
+    let seen: { cmd: string; args: unknown } | null = null;
+    mockIPC((cmd, args) => {
+      seen = { cmd, args };
+      return [];
+    });
+
+    await api.inspectGithubSkills("owner", "repo", "subpath");
+    expect(seen!.cmd).toBe("inspect_github_skills");
+    expect(seen!.args).toEqual({
+      owner: "owner",
+      repoName: "repo",
+      subpath: "subpath",
     });
   });
 

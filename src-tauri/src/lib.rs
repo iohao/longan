@@ -112,6 +112,7 @@ fn run_inner() -> Result<(), Box<dyn std::error::Error>> {
         })
         .invoke_handler(tauri::generate_handler![
             commands::search_registry,
+            commands::inspect_github_skills,
             commands::install_skill,
             commands::cancel_skill_install,
             commands::cancel_skill_installs,

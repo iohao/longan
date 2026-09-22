@@ -5,6 +5,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type {
   Agent,
   BrokenLink,
+  DiscoveredSkill,
   EffectiveSkill,
   GitCacheInfo,
   ImportResult,
@@ -32,7 +33,17 @@ const SKILLS_CHANGED_EVENT = "skills-changed";
 export const api = {
   // registry
   searchRegistry: (query: string) => invoke<RegistrySkill[]>("search_registry", { query }),
-  installSkill: (owner: string, repoName: string, skillId: string, operationId: string, sourceUrl?: string, githubSource?: string) =>
+  inspectGithubSkills: (owner: string, repoName: string, subpath?: string) =>
+    invoke<DiscoveredSkill[]>("inspect_github_skills", { owner, repoName, subpath }),
+  installSkill: (
+    owner: string,
+    repoName: string,
+    skillId: string,
+    operationId: string,
+    sourceUrl?: string,
+    githubSource?: string,
+    sourcePath?: string,
+  ) =>
     invoke<Skill>("install_skill", {
       owner,
       repoName,
@@ -40,6 +51,7 @@ export const api = {
       operationId,
       sourceUrl,
       githubSource,
+      sourcePath,
     }),
   cancelSkillInstall: (operationId: string) =>
     invoke<boolean>("cancel_skill_install", { operationId }),

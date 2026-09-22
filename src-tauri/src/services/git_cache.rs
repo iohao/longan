@@ -52,6 +52,15 @@ pub struct ExportedSkill {
     pub tree_sha: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiscoveredSkillData {
+    pub skill_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub source_path: String,
+}
+
+
 static REPOSITORY_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>> = OnceLock::new();
 static CACHE_MAINTENANCE: OnceLock<RwLock<()>> = OnceLock::new();
 
@@ -266,6 +275,80 @@ pub fn export_skill(
         source_path: path,
         tree_sha: tree.id().to_string(),
     })
+}
+
+pub fn discover_skills(
+    cached: &CachedRepository,
+    subpath: Option<&str>,
+    fallback_repo_name: &str,
+) -> Result<Vec<DiscoveredSkillData>, GitCacheError> {
+    let _maintenance = maintenance_lock()
+        .read()
+        .map_err(|_| GitCacheError::Corrupt)?;
+    let lock = repository_lock(&cached.cache_path)?;
+    let _guard = lock.lock().map_err(|_| GitCacheError::Corrupt)?;
+    let repository = Repository::open_bare(&cached.cache_path).map_err(classify_git_error)?;
+    let oid = Oid::from_str(&cached.commit.sha).map_err(|_| GitCacheError::NotFound)?;
+    let commit = repository.find_commit(oid).map_err(classify_git_error)?;
+    let root = commit.tree().map_err(classify_git_error)?;
+
+    let normalized_sub = subpath
+        .map(|s| s.trim_matches('/'))
+        .filter(|s| !s.is_empty());
+
+    let mut stack = vec![(String::new(), root.id())];
+    let mut skills = Vec::new();
+
+    while let Some((path, oid)) = stack.pop() {
+        let tree = repository.find_tree(oid).map_err(classify_git_error)?;
+        if let Some(skill_md) = tree.get_name("SKILL.md") {
+            if skill_md.kind() == Some(ObjectType::Blob) {
+                let matches_subpath = match normalized_sub {
+                    Some(sub) => path == sub || path.starts_with(&format!("{sub}/")),
+                    None => true,
+                };
+                if matches_subpath {
+                    let dir_name = path.rsplit('/').next().unwrap_or("");
+                    let skill_id = if dir_name.is_empty() {
+                        fallback_repo_name.to_string()
+                    } else {
+                        dir_name.to_string()
+                    };
+                    let blob = repository.find_blob(skill_md.id()).map_err(classify_git_error)?;
+                    let (fm_name, fm_desc) = match std::str::from_utf8(blob.content()) {
+                        Ok(content) => scanner::parse_skill_md_content(content),
+                        Err(_) => (None, None),
+                    };
+                    let name = fm_name
+                        .and_then(|n| validate::sanitize_link_name(&n))
+                        .unwrap_or_else(|| skill_id.clone());
+                    skills.push(DiscoveredSkillData {
+                        skill_id,
+                        name,
+                        description: fm_desc,
+                        source_path: path.clone(),
+                    });
+                }
+            }
+        }
+
+        for entry in &tree {
+            if entry.kind() == Some(ObjectType::Tree) {
+                let Some(name) = entry.name() else { continue; };
+                if name.starts_with('.') {
+                    continue;
+                }
+                let child = if path.is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{path}/{name}")
+                };
+                stack.push((child, entry.id()));
+            }
+        }
+    }
+
+    Ok(skills)
 }
 
 fn fetch_once(
@@ -1049,4 +1132,21 @@ mod tests {
         assert_eq!(info.repository_count, 1);
         assert_eq!(info.total_bytes, 10);
     }
+
+    #[test]
+    fn discovers_skills_filtered_by_subpath() {
+        let (temp, remote, commit) = setup_remote();
+        let paths = Paths::with_root(temp.path().to_path_buf());
+        let cached = fetch_local(&paths, &remote, &commit).unwrap();
+
+        let all = discover_skills(&cached, None, "repo").unwrap();
+        assert_eq!(all.len(), 2);
+
+        let filtered = discover_skills(&cached, Some("skills/one"), "repo").unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].skill_id, "one");
+        assert_eq!(filtered[0].name, "one");
+        assert_eq!(filtered[0].source_path, "skills/one");
+    }
 }
+

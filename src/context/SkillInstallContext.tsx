@@ -103,6 +103,7 @@ export function SkillInstallProvider({ children }: { children: ReactNode }) {
         task.operationId,
         task.sourceUrl,
         task.githubSource,
+        task.sourcePath,
       );
       updateTask(task.id, (current) => current.operationId === task.operationId
         ? {

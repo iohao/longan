@@ -13,7 +13,7 @@ use crate::db::{repo, Db};
 use crate::diagnostics;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    Agent, BrokenLink, EffectiveSkill, GitCacheInfo, ImportResult, ListedSkill,
+    Agent, BrokenLink, DiscoveredSkill, EffectiveSkill, GitCacheInfo, ImportResult, ListedSkill,
     LocalSkillPreview, MoveDirection, Preset, PresetReuseMode, PresetReuseResult, Project,
     ProjectGroup, RegistrySkill, Skill, SyncReport,
 };
@@ -317,6 +317,45 @@ pub async fn search_registry(
 }
 
 #[tauri::command]
+pub async fn inspect_github_skills(
+    state: State<'_, AppState>,
+    owner: String,
+    repo_name: String,
+    subpath: Option<String>,
+) -> AppResult<Vec<DiscoveredSkill>> {
+    validate::validate_segment(&owner)?;
+    validate::validate_segment(&repo_name)?;
+    let normalized_subpath = subpath
+        .as_deref()
+        .map(|s| s.trim_matches('/'))
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned);
+    if let Some(ref sp) = normalized_subpath {
+        validate::ensure_safe_relative(sp)?;
+    }
+    let token = state.token()?;
+    let repository = installer::download_repository(
+        &state.client,
+        &state.paths,
+        &owner,
+        &repo_name,
+        token.as_deref(),
+        None,
+        None,
+    )
+    .await?;
+
+    let conn = state.db.conn.lock().unwrap();
+    installer::discover_skills_in_repository(
+        &conn,
+        &owner,
+        &repo_name,
+        &repository,
+        normalized_subpath.as_deref(),
+    )
+}
+
+#[tauri::command]
 #[expect(
     clippy::too_many_arguments,
     reason = "Tauri injects app state alongside the flat install IPC payload"
@@ -330,10 +369,14 @@ pub async fn install_skill(
     operation_id: String,
     source_url: Option<String>,
     github_source: Option<String>,
+    source_path: Option<String>,
 ) -> AppResult<Skill> {
     validate::validate_segment(&owner)?;
     validate::validate_segment(&repo_name)?;
     validate::validate_segment(&skill_id)?;
+    if let Some(ref sp) = source_path {
+        validate::ensure_safe_relative(sp)?;
+    }
     let target = format!("{owner}/{repo_name}/{skill_id}").to_ascii_lowercase();
     let cancellation = state.skill_installs.reserve(&operation_id, &target)?;
     let reporter = |progress: installer::InstallProgress| {
@@ -361,7 +404,7 @@ pub async fn install_skill(
             Some(&reporter),
             Some(&cancellation),
             true,
-            None,
+            source_path.as_deref(),
         )
         .await?;
         if state.skill_installs.begin_finalize(&operation_id) {
