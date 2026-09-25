@@ -31,7 +31,6 @@ Longan solves this problem with a one-stop experience for centralized skill stor
 2. Download the installer for your system:
    - macOS: Choose the `macos-arm64` `.dmg` for Apple silicon or the `macos-x64` `.dmg` for Intel processors.
    - Windows: Download the `windows-x64` `.exe` or `.msi` installer.
-   - Linux x64: Download the `linux-x64` `.AppImage`, `.deb`, or `.rpm` package.
 3. Open the downloaded installer, follow your system prompts to finish installation, then launch Longan.
 
 ---

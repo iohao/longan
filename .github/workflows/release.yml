@@ -89,13 +89,6 @@ jobs:
             bundle_root: src-tauri/target/release/bundle
             tauri_args: ""
             rust_targets: ""
-          - os: ubuntu-22.04
-            label: Linux x64
-            asset_suffix: linux-x64
-            updater_target: linux-x86_64
-            bundle_root: src-tauri/target/release/bundle
-            tauri_args: ""
-            rust_targets: ""
 
     steps:
       - name: Checkout repository
@@ -117,21 +110,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_targets }}
-
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            curl \
-            file \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            libwebkit2gtk-4.1-dev \
-            libxdo-dev \
-            wget
 
       - name: Cache Rust artifacts
         uses: swatinem/rust-cache@v2
@@ -181,30 +159,6 @@ jobs:
                 ;;
               *.app.tar.gz)
                 extension=".app.tar.gz"
-                ;;
-              *.AppImage.tar.gz.sig)
-                extension=".AppImage.tar.gz.sig"
-                ;;
-              *.AppImage.tar.gz)
-                extension=".AppImage.tar.gz"
-                ;;
-              *.AppImage.sig)
-                extension=".AppImage.sig"
-                ;;
-              *.AppImage)
-                extension=".AppImage"
-                ;;
-              *.deb.sig)
-                extension=".deb.sig"
-                ;;
-              *.deb)
-                extension=".deb"
-                ;;
-              *.rpm.sig)
-                extension=".rpm.sig"
-                ;;
-              *.rpm)
-                extension=".rpm"
                 ;;
               *.exe.sig)
                 extension=".exe.sig"
@@ -267,22 +221,6 @@ jobs:
                 if [ "${#updater_files[@]}" -gt 0 ]; then
                   updater_source="${updater_files[0]}"
                 fi
-              fi
-              ;;
-            Linux)
-              release_files=(
-                "$BUNDLE_ROOT"/appimage/*.AppImage
-                "$BUNDLE_ROOT"/appimage/*.AppImage.sig
-                "$BUNDLE_ROOT"/appimage/*.AppImage.tar.gz
-                "$BUNDLE_ROOT"/appimage/*.AppImage.tar.gz.sig
-                "$BUNDLE_ROOT"/deb/*.deb
-                "$BUNDLE_ROOT"/deb/*.deb.sig
-                "$BUNDLE_ROOT"/rpm/*.rpm
-                "$BUNDLE_ROOT"/rpm/*.rpm.sig
-              )
-              updater_files=("$BUNDLE_ROOT"/appimage/*.AppImage)
-              if [ "${#updater_files[@]}" -gt 0 ]; then
-                updater_source="${updater_files[0]}"
               fi
               ;;
             *)

@@ -31,7 +31,6 @@ Longan 致力于解决这一痛点，提供了一站式的技能集中存储与�
 2. 根据系统下载对应安装包：
    - macOS：Apple 芯片选择 `macos-arm64`，Intel 芯片选择 `macos-x64` 的 `.dmg` 文件。
    - Windows：下载 `windows-x64` 的 `.exe` 或 `.msi` 安装包。
-   - Linux x64：下载 `linux-x64` 的 `.AppImage`、`.deb` 或 `.rpm` 安装包。
 3. 打开下载的安装包，按系统提示完成安装后启动 Longan。
 
 ---
