@@ -1,0 +1,18 @@
+{
+  "version": "1.2.0",
+  "notes": "# Longan v1.2.0\n\nmacOS may block Longan the first time you open it. After moving `longan.app` to `/Applications`, verify that it came from this official release, open Terminal, and run the following command once:\n\n```bash\nsudo xattr -dr com.apple.quarantine \"/Applications/longan.app\"\n```\n\nOpen Longan again after the command completes.\n\nLongan 1.2.0 introduces sub-skills discovery and hierarchy visualization in Tree View for collection directories, restores open directory actions on child skill cards, and focuses desktop builds on macOS and Windows platforms.\n\n## What's changed\n\n1. Sub-skills discovery & tree view for collections\n   - Local skill collection directories now automatically scan and populate nested sub-skills metadata.\n   - Tree View renders collapsible sub-skill listings with tree connector lines, collection badges, and sub-skill counts.\n   - Each sub-skill supports directly opening its local directory.\n   - Search filtering now matches against sub-skills within collections.\n2. Installed skill actions\n   - Individual skill cards in Tree View and Flat View retain direct open directory actions.\n   - Added directory existence verification prior to opening local skill paths.\n3. Platform and packaging maintenance\n   - Streamlined release packaging and continuous integration pipelines for macOS and Windows.\n\n## 中文说明\n\nLongan 1.2.0 带来了技能集合（Collection）的多层级子技能识别与树状视图展示，优化了已安装技能卡片的目录操作，并精简了桌面端构建发布流程。\n\n1. 技能集合子技能识别与树状视图\n   - 自动扫描并识别本地集合目录中的子技能元数据。\n   - 树状视图支持展开与折叠子技能列表，带有树形连接线、集合标识及数量统计。\n   - 每个子技能均支持独立打开对应的本地目录。\n   - 搜索过滤全面支持匹配集合内的子技能。\n2. 已安装技能卡片操作修复\n   - 树状视图与扁平视图中单个技能卡片均保留打开本地目录功能。\n   - 后端打开目录前增加本地路径存在性校验。\n3. 平台与构建流维护\n   - 精简桌面构建与发布工作流，专注交付 macOS 与 Windows 发行版。\n\n**Full Changelog**: https://github.com/iohao/longan/compare/v1.1.0...v1.2.0",
+  "platforms": {
+    "darwin-aarch64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.2.0/longan-v1.2.0-macos-arm64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTFlL3BYOWFyU0JxQ01DZm1lZjExc0c3aUNMSzdFMTRpd003UEZBbGpBTmNkZXM1V0ZnbWRCbTgzY3V4dTlxelFyMXEwQ2xDUWl3MWN6THF1bU5aeGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDI4MTMzCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKRkdwR3RoUmRnWW01emd5VklmTEhUekk0ZDJDTHZsd2VpdWVrUW10OFh4NmdZWkFxelpTcFpnTVoybXQrelJ3Z3JuVElQN3A5NXhMK1RPSjUrRDdQQXc9PQo="
+    },
+    "darwin-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.2.0/longan-v1.2.0-macos-x64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdTBzeFFNN29pa0VkeElpcXl6YUdyTWxCU3pzVDlKc0toYkJTRG0vNVd4UlRhVjF4ZWtmbXNlWlA2b3g5VHAzOVZjbnV3dm1rb3oxbERWVXNNWVBLSVFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDI4MTQ1CWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oKbDFmT3NpOUpiVk9GZHdkYUxKeEpQcHZVdmRQVTBiK0V5VDRXY3IwMDJocXgzQjgybHJwaHIyOVNQRmt4MVZzdC9JQzN5S0RTOVc5TDIzVkdWVS8yQnc9PQo="
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v1.2.0/longan-v1.2.0-windows-x64.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdXpPNytDdzN0N3NCMnVCSE9hV3JheEw5bldFcDBtMUVFcTA1Y2hCRXlBMm5mYTZmTnhCbnl5d1VhQURlZmN1RTRFbDBlQlE4bHg5QVF2VE54K2lyRHdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNDI4NjA1CWZpbGU6bG9uZ2FuXzEuMi4wX3g2NC1zZXR1cC5leGUKeTRNREFrLzR4UGFHbTZEK3F3Ung2OGd4eEU1dGcxNUVnVEh2ZThDWFlzTmRjbS9XWlZzank0Znh3bGl0Q05qNWVDcG9YSkI3K1NNK2I5dFh0d3NDQ0E9PQo="
+    }
+  }
+}
