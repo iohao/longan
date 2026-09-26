@@ -334,7 +334,7 @@ pub fn discover_skills(
 
         for entry in &tree {
             if entry.kind() == Some(ObjectType::Tree) {
-                let Some(name) = entry.name() else { continue; };
+                let Ok(name) = entry.name() else { continue; };
                 if name.starts_with('.') {
                     continue;
                 }
@@ -615,7 +615,7 @@ fn find_skill_tree<'repo>(
         }
         for entry in &tree {
             if entry.kind() == Some(ObjectType::Tree) {
-                let name = entry.name().ok_or(GitCacheError::Export)?;
+                let name = entry.name().map_err(|_| GitCacheError::Export)?;
                 let child = if path.is_empty() {
                     name.to_string()
                 } else {
@@ -659,7 +659,7 @@ fn export_tree(
 ) -> Result<(), GitCacheError> {
     for entry in tree {
         check_cancelled(cancellation)?;
-        let name = entry.name().ok_or(GitCacheError::Export)?;
+        let name = entry.name().map_err(|_| GitCacheError::Export)?;
         let target = destination.join(name);
         match entry.kind() {
             Some(ObjectType::Tree) => {
