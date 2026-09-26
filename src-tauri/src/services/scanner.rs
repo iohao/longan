@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::db::repo;
 use crate::error::{AppError, AppResult};
-use crate::models::{LocalSkillPreview, Skill};
+use crate::models::{LocalSkillPreview, Skill, SubSkillInfo};
 use crate::paths::Paths;
 use crate::services::linker;
 use crate::services::platform_link;
@@ -97,6 +97,39 @@ fn find_sub_skills(dir: &Path) -> Vec<String> {
     }
     sub_skills.sort();
     sub_skills
+}
+
+pub fn find_sub_skill_infos(dir: &Path, base_dir_path: &str) -> Vec<SubSkillInfo> {
+    let mut sub_skills = vec![];
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return sub_skills;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let dir_name = entry.file_name().to_string_lossy().to_string();
+        if !dir_name.starts_with('.') && path.is_dir() && path.join("SKILL.md").is_file() {
+            let (fm_name, fm_desc) = parse_skill_md(&path);
+            let name = fm_name
+                .and_then(|n| validate::sanitize_link_name(&n))
+                .unwrap_or_else(|| dir_name.clone());
+            sub_skills.push(SubSkillInfo {
+                name,
+                description: fm_desc,
+                dir_path: format!("{base_dir_path}/{dir_name}"),
+            });
+        }
+    }
+    sub_skills.sort_by(|a, b| a.name.cmp(&b.name));
+    sub_skills
+}
+
+pub fn populate_sub_skills(paths: &Paths, skill: &mut Skill) {
+    let skill_dir = paths.skills_dir().join(&skill.dir_path);
+    if skill_dir.join("SKILL.md").is_file() {
+        skill.sub_skills = vec![];
+        return;
+    }
+    skill.sub_skills = find_sub_skill_infos(&skill_dir, &skill.dir_path);
 }
 
 fn parse_readme_desc(dir: &Path) -> Option<String> {
@@ -490,5 +523,75 @@ mod tests {
 
         // Second import of the same folder name is rejected.
         assert!(import_local(&conn, &paths, &src).is_err());
+    }
+
+    #[test]
+    fn populate_sub_skills_populates_sub_skills_for_collection() {
+        let tmp = tempfile::tempdir().unwrap();
+        let paths = Paths::with_root(tmp.path().to_path_buf());
+        paths.ensure_layout().unwrap();
+        let dc_skill_dir = paths.local_dir().join("dc-skill");
+        write_skill(&dc_skill_dir.join("dc-class"), "dc-class", "Class sync");
+        write_skill(
+            &dc_skill_dir.join("dc-module-design"),
+            "dc-module-design",
+            "Module design",
+        );
+
+        let mut skill = Skill {
+            id: 1,
+            name: "dc-skill".into(),
+            source_type: "local".into(),
+            install_source: Some("local_import".into()),
+            owner: None,
+            repo: None,
+            dir_path: "local/dc-skill".into(),
+            description: None,
+            latest_sha: None,
+            source_path: None,
+            tree_sha: None,
+            status: "ok".into(),
+            updated_at: "2026-07-01".into(),
+            source_url: None,
+            github_source: None,
+            sub_skills: vec![],
+        };
+
+        populate_sub_skills(&paths, &mut skill);
+        assert_eq!(skill.sub_skills.len(), 2);
+        assert_eq!(skill.sub_skills[0].name, "dc-class");
+        assert_eq!(skill.sub_skills[0].description.as_deref(), Some("Class sync"));
+        assert_eq!(skill.sub_skills[0].dir_path, "local/dc-skill/dc-class");
+        assert_eq!(skill.sub_skills[1].name, "dc-module-design");
+    }
+
+    #[test]
+    fn populate_sub_skills_leaves_single_skill_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let paths = Paths::with_root(tmp.path().to_path_buf());
+        paths.ensure_layout().unwrap();
+        write_skill(&paths.local_dir().join("my-skill"), "my-skill", "Single skill");
+
+        let mut skill = Skill {
+            id: 2,
+            name: "my-skill".into(),
+            source_type: "local".into(),
+            install_source: Some("local_import".into()),
+            owner: None,
+            repo: None,
+            dir_path: "local/my-skill".into(),
+            description: None,
+            latest_sha: None,
+            source_path: None,
+            tree_sha: None,
+            status: "ok".into(),
+            updated_at: "2026-07-01".into(),
+            source_url: None,
+            github_source: None,
+            sub_skills: vec![],
+        };
+
+        populate_sub_skills(&paths, &mut skill);
+        assert!(skill.sub_skills.is_empty());
     }
 }

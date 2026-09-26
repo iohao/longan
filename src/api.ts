@@ -166,6 +166,8 @@ export const api = {
   openLogsDir: () => invoke<void>("open_logs_dir"),
   exportDiagnostics: () => invoke<string>("export_diagnostics"),
   openSkillDir: (skillId: number) => invoke<void>("open_skill_dir", { skillId }),
+  openSkillSubDir: (skillId: number, subSkillName: string) =>
+    invoke<void>("open_skill_sub_dir", { skillId, subSkillName }),
   openSkillGroupDir: (
     sourceType: "net" | "local",
     owner?: string | null,

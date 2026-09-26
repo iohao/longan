@@ -70,6 +70,7 @@ const mocks = vi.hoisted(() => ({
   deleteSkill: vi.fn(),
   skillReferenceDetails: vi.fn(),
   openSkillGroupDir: vi.fn(),
+  openSkillSubDir: vi.fn(),
   openUrl: vi.fn(),
   progressListener: null as ((progress: SkillUpdateProgressEvent) => void) | null,
   skillsChangedListeners: [] as Array<() => void>,
@@ -91,6 +92,7 @@ vi.mock("../api", () => ({
     deleteSkill: mocks.deleteSkill,
     skillReferenceDetails: mocks.skillReferenceDetails,
     openSkillGroupDir: mocks.openSkillGroupDir,
+    openSkillSubDir: mocks.openSkillSubDir,
     getSetting: vi.fn(async () => null),
   },
   errorMessage: (error: unknown) => String(error),
@@ -137,6 +139,7 @@ function emitSkillsChanged() {
 }
 
 beforeEach(async () => {
+  localStorage.clear();
   await i18n.changeLanguage("zh");
   mocks.listSkills.mockResolvedValue(skills);
   mocks.skillReferenceDetails.mockResolvedValue([]);
@@ -662,6 +665,60 @@ describe("InstalledPage", () => {
       "alpha-query",
       "react-query",
     ]);
+  });
+
+  it("displays sub-skills details for collection skills under local in tree view", async () => {
+    const collectionSkill: ListedSkill = {
+      id: 10,
+      name: "dc-skill",
+      source_type: "local",
+      owner: null,
+      repo: null,
+      dir_path: "local/dc-skill",
+      description: "Skill Collection (2 skills)",
+      latest_sha: null,
+      status: "ok",
+      updated_at: "2026-07-01",
+      reference_count: 0,
+      sub_skills: [
+        {
+          name: "dc-class",
+          description: "Class sync documentation",
+          dir_path: "local/dc-skill/dc-class",
+        },
+        {
+          name: "dc-module-design",
+          description: "Module design specification",
+          dir_path: "local/dc-skill/dc-module-design",
+        },
+      ],
+    };
+
+    mocks.listSkills.mockResolvedValue([collectionSkill]);
+    const user = userEvent.setup();
+    renderPage();
+
+    // Verify parent skill name and collection badge
+    expect(await screen.findByText("dc-skill")).toBeInTheDocument();
+    expect(screen.getByText("合集 (2)")).toBeInTheDocument();
+
+    // Verify sub-skills details are visible
+    expect(screen.getByText("dc-class")).toBeInTheDocument();
+    expect(screen.getByText("Class sync documentation")).toBeInTheDocument();
+    expect(screen.getByText("dc-module-design")).toBeInTheDocument();
+    expect(screen.getByText("Module design specification")).toBeInTheDocument();
+
+    // Verify collapsing sub-skills
+    const collapseBtn = screen.getByRole("button", { name: /收起明细/ });
+    await user.click(collapseBtn);
+
+    expect(screen.queryByText("Class sync documentation")).not.toBeInTheDocument();
+
+    // Verify expanding sub-skills again
+    const expandBtn = screen.getByRole("button", { name: /展开明细/ });
+    await user.click(expandBtn);
+
+    expect(screen.getByText("Class sync documentation")).toBeInTheDocument();
   });
 });
 

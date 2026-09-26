@@ -14,6 +14,13 @@ export interface Skill {
   updated_at: string;
   source_url?: string | null;   // skills.sh registry ID
   github_source?: string | null; // GitHub source
+  sub_skills?: SubSkillInfo[];
+}
+
+export interface SubSkillInfo {
+  name: string;
+  description: string | null;
+  dir_path: string;
 }
 
 export interface ListedSkill extends Skill {

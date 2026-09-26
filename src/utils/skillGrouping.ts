@@ -31,6 +31,18 @@ export function matchesSkillSearch(skill: ListedSkill, debouncedQuery: string): 
     }
   }
 
+  const subSkillsMatch = Boolean(
+    skill.sub_skills?.some(
+      (sub) =>
+        sub.name.toLowerCase().includes(q) ||
+        Boolean(sub.description && sub.description.toLowerCase().includes(q)) ||
+        sub.dir_path.toLowerCase().includes(q) ||
+        sub.name.toLowerCase().includes(rawQ) ||
+        Boolean(sub.description && sub.description.toLowerCase().includes(rawQ)) ||
+        sub.dir_path.toLowerCase().includes(rawQ)
+    )
+  );
+
   return (
     skill.name.toLowerCase().includes(q) ||
     Boolean(skill.description && skill.description.toLowerCase().includes(q)) ||
@@ -39,7 +51,8 @@ export function matchesSkillSearch(skill: ListedSkill, debouncedQuery: string): 
     Boolean(skill.repo && skill.repo.toLowerCase().includes(q)) ||
     skill.name.toLowerCase().includes(rawQ) ||
     Boolean(skill.description && skill.description.toLowerCase().includes(rawQ)) ||
-    skill.dir_path.toLowerCase().includes(rawQ)
+    skill.dir_path.toLowerCase().includes(rawQ) ||
+    subSkillsMatch
   );
 }
 

@@ -498,6 +498,7 @@ mod tests {
                 updated_at: "now".into(),
                 source_url: None,
                 github_source: None,
+                sub_skills: vec![],
             }],
             presets: vec![ExportPreset {
                 name: "local".into(),
@@ -665,6 +666,7 @@ mod tests {
             updated_at: "now".into(),
             source_url: None,
             github_source: None,
+            sub_skills: vec![],
         }
     }
 }

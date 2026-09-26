@@ -30,6 +30,7 @@ interface RepoGroupCardProps {
   onViewReferences: (skill: Skill) => void;
   onActionError: (message: string) => void;
   batchUpdating?: boolean;
+  searchQuery?: string;
 }
 
 const RepoGroupCard = memo(function RepoGroupCard({
@@ -44,6 +45,7 @@ const RepoGroupCard = memo(function RepoGroupCard({
   onViewReferences,
   onActionError,
   batchUpdating = false,
+  searchQuery = "",
 }: RepoGroupCardProps) {
   const { t } = useTranslation();
 
@@ -211,6 +213,7 @@ const RepoGroupCard = memo(function RepoGroupCard({
                 onDelete={onDelete}
                 onViewReferences={onViewReferences}
                 onActionError={onActionError}
+                searchQuery={searchQuery}
               />
             </div>
           ))}

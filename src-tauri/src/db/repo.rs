@@ -25,6 +25,7 @@ fn skill_from_row(row: &Row) -> rusqlite::Result<Skill> {
         source_url: row.get("source_url").unwrap_or_default(),
         github_source: row.get("github_source").unwrap_or_default(),
         install_source: row.get("install_source").ok(),
+        sub_skills: vec![],
     })
 }
 

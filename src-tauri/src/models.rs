@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+pub struct SubSkillInfo {
+    pub name: String,
+    pub description: Option<String>,
+    pub dir_path: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Skill {
     pub id: i64,
@@ -26,6 +33,8 @@ pub struct Skill {
     pub source_url: Option<String>,
     /// GitHub source (e.g., "obra/superpowers")
     pub github_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sub_skills: Vec<SubSkillInfo>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

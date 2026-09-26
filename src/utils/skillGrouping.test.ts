@@ -118,4 +118,31 @@ describe("skillGrouping", () => {
     const matches = matchesSkillSearch(sampleSkills[0], "samber/cc-skills-golang/golang-testing");
     expect(matches).toBe(true);
   });
+
+  it("matches search query within sub-skills", () => {
+    const collectionSkill: ListedSkill = {
+      id: 5,
+      name: "dc-skill",
+      source_type: "local",
+      owner: null,
+      repo: null,
+      dir_path: "local/dc-skill",
+      description: "Skill Collection",
+      latest_sha: null,
+      status: "ok",
+      updated_at: "2026-09-05",
+      reference_count: 0,
+      sub_skills: [
+        {
+          name: "dc-class",
+          description: "Sync object field documentation",
+          dir_path: "local/dc-skill/dc-class",
+        },
+      ],
+    };
+
+    expect(matchesSkillSearch(collectionSkill, "dc-class")).toBe(true);
+    expect(matchesSkillSearch(collectionSkill, "field documentation")).toBe(true);
+    expect(matchesSkillSearch(collectionSkill, "unrelated")).toBe(false);
+  });
 });

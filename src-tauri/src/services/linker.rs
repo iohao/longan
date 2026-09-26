@@ -437,6 +437,7 @@ mod tests {
             updated_at: String::new(),
             source_url: None,
             github_source: None,
+            sub_skills: vec![],
         }
     }
 

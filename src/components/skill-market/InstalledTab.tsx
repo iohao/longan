@@ -467,6 +467,7 @@ export default function InstalledTab({
               onViewReferences={onViewReferences}
               onActionError={onActionError}
               batchUpdating={batchUpdating}
+              searchQuery={debouncedQuery}
             />
           ))}
         </div>
@@ -487,6 +488,7 @@ export default function InstalledTab({
               onDelete={onDelete}
               onViewReferences={onViewReferences}
               onActionError={onActionError}
+              searchQuery={debouncedQuery}
             />
           )}
         />

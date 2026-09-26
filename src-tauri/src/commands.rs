@@ -509,14 +509,22 @@ pub async fn cancel_skill_installs(state: State<'_, AppState>) -> AppResult<usiz
 #[tauri::command]
 pub fn list_skills(state: State<'_, AppState>) -> AppResult<Vec<ListedSkill>> {
     let conn = state.db.conn.lock().unwrap();
-    repo::list_skills_with_reference_counts(&conn)
+    let mut skills = repo::list_skills_with_reference_counts(&conn)?;
+    for item in &mut skills {
+        scanner::populate_sub_skills(&state.paths, &mut item.skill);
+    }
+    Ok(skills)
 }
 
 #[tauri::command]
 pub fn rescan_local(state: State<'_, AppState>) -> AppResult<Vec<Skill>> {
     let conn = state.db.conn.lock().unwrap();
     scanner::rescan(&conn, &state.paths)?;
-    repo::list_skills(&conn)
+    let mut skills = repo::list_skills(&conn)?;
+    for skill in &mut skills {
+        scanner::populate_sub_skills(&state.paths, skill);
+    }
+    Ok(skills)
 }
 
 /// Inspect a user-picked folder before importing it as a local skill.
@@ -529,7 +537,9 @@ pub fn preview_local_skill(state: State<'_, AppState>, path: String) -> AppResul
 #[tauri::command]
 pub fn import_local_skill(state: State<'_, AppState>, path: String) -> AppResult<Skill> {
     let conn = state.db.conn.lock().unwrap();
-    scanner::import_local(&conn, &state.paths, std::path::Path::new(&path))
+    let mut skill = scanner::import_local(&conn, &state.paths, std::path::Path::new(&path))?;
+    scanner::populate_sub_skills(&state.paths, &mut skill);
+    Ok(skill)
 }
 
 #[tauri::command]
@@ -1805,6 +1815,29 @@ pub fn open_skill_dir(
         .map_err(|e| AppError::Other(e.to_string()))
 }
 
+#[tauri::command]
+pub fn open_skill_sub_dir(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    skill_id: i64,
+    sub_skill_name: String,
+) -> AppResult<()> {
+    let conn = state.db.conn.lock().unwrap();
+    let skill = repo::get_skill(&conn, skill_id)?;
+    validate::validate_segment(&sub_skill_name)?;
+    let base_dir = state.paths.checked_skill_source_dir(&skill.dir_path)?;
+    let path = base_dir.join(&sub_skill_name);
+    if !path.exists() {
+        return Err(AppError::NotFound(format!(
+            "sub-skill directory does not exist: {}",
+            path.display()
+        )));
+    }
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| AppError::Other(e.to_string()))
+}
+
 pub fn resolve_skill_group_dir(
     paths: &Paths,
     source_type: &str,
@@ -1958,6 +1991,7 @@ mod tests {
             updated_at: "2027-08-01T20:20:00".into(),
             source_url: None,
             github_source: None,
+            sub_skills: vec![],
         }
     }
 
