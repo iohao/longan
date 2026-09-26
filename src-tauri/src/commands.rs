@@ -1810,6 +1810,12 @@ pub fn open_skill_dir(
     let conn = state.db.conn.lock().unwrap();
     let skill = repo::get_skill(&conn, skill_id)?;
     let path = state.paths.checked_skill_source_dir(&skill.dir_path)?;
+    if !path.exists() {
+        return Err(AppError::NotFound(format!(
+            "skill directory does not exist: {}",
+            path.display()
+        )));
+    }
     app.opener()
         .open_path(path.to_string_lossy(), None::<&str>)
         .map_err(|e| AppError::Other(e.to_string()))

@@ -89,7 +89,7 @@ describe("SkillSourceActions", () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith("Error: cannot open"));
   });
 
-  it("hides GitHub and directory actions when hideRepoActions is true", () => {
+  it("hides GitHub repository action when hideRepoActions is true but retains directory action", () => {
     render(
       <SkillSourceActions skill={netSkill} onError={vi.fn()} hideRepoActions={true}>
         <button type="button" aria-label="Delete action" />
@@ -98,7 +98,7 @@ describe("SkillSourceActions", () => {
 
     expect(screen.getByRole("button", { name: "Open Skills Source Page" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open GitHub Repository" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Open Local Directory" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Local Directory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete action" })).toBeInTheDocument();
   });
 

@@ -69,6 +69,7 @@ const mocks = vi.hoisted(() => ({
   skillReferences: vi.fn(),
   deleteSkill: vi.fn(),
   skillReferenceDetails: vi.fn(),
+  openSkillDir: vi.fn(),
   openSkillGroupDir: vi.fn(),
   openSkillSubDir: vi.fn(),
   openUrl: vi.fn(),
@@ -91,6 +92,7 @@ vi.mock("../api", () => ({
     skillReferences: mocks.skillReferences,
     deleteSkill: mocks.deleteSkill,
     skillReferenceDetails: mocks.skillReferenceDetails,
+    openSkillDir: mocks.openSkillDir,
     openSkillGroupDir: mocks.openSkillGroupDir,
     openSkillSubDir: mocks.openSkillSubDir,
     getSetting: vi.fn(async () => null),
@@ -149,6 +151,7 @@ beforeEach(async () => {
   mocks.rescanLocal.mockResolvedValue(skills);
   mocks.skillReferences.mockResolvedValue([[], []]);
   mocks.deleteSkill.mockResolvedValue(undefined);
+  mocks.openSkillDir.mockResolvedValue(undefined);
   mocks.openSkillGroupDir.mockResolvedValue(undefined);
   mocks.openUrl.mockResolvedValue(undefined);
   mocks.progressListener = null;
@@ -565,10 +568,14 @@ describe("InstalledPage", () => {
 
     // Click "打开本地目录" on the repo group card
     const openDirBtns = screen.getAllByRole("button", { name: "打开本地目录" });
-    // In tree view with skills (obra/superpowers: 3 net skills), only the parent group card has "打开本地目录"
-    expect(openDirBtns).toHaveLength(1);
+    // In tree view, the parent group card has "打开本地目录" (1) and each child skill card also has its own "打开本地目录" (3) -> total 4
+    expect(openDirBtns).toHaveLength(4);
     await user.click(openDirBtns[0]);
     expect(mocks.openSkillGroupDir).toHaveBeenCalledWith("net", "obra", "superpowers");
+
+    // Click "打开本地目录" on the first child skill card
+    await user.click(openDirBtns[1]);
+    expect(mocks.openSkillDir).toHaveBeenCalledWith(1);
   });
 
   it("omits redundant repo prefix in tree view child cards but retains it in flat view", async () => {

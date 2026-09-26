@@ -105,17 +105,15 @@ export default function SkillSourceActions({
         />
       ) : null}
 
-      {!hideRepoActions && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={openDirectory}
-          title={t("library.openLocalDir")}
-          aria-label={t("library.openLocalDir")}
-          icon={<FolderOpen className="h-3.5 w-3.5 text-slate-300" />}
-        />
-      )}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={openDirectory}
+        title={t("library.openLocalDir")}
+        aria-label={t("library.openLocalDir")}
+        icon={<FolderOpen className="h-3.5 w-3.5 text-slate-300" />}
+      />
 
       {children}
     </HoverActionGroup>
