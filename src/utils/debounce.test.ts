@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useDebounce } from "./debounce";
+import { ref } from "vue";
+import { useDebounce, debounce } from "./debounce";
 
 describe("useDebounce", () => {
   beforeEach(() => {
@@ -11,42 +11,56 @@ describe("useDebounce", () => {
   });
 
   it("only exposes the new value after the delay", () => {
-    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 300), {
-      initialProps: { value: "a" },
-    });
-    expect(result.current).toBe("a");
+    const value = ref("a");
+    const debounced = useDebounce(value, 300);
 
-    rerender({ value: "ab" });
-    expect(result.current).toBe("a");
+    expect(debounced.value).toBe("a");
 
-    act(() => {
-      vi.advanceTimersByTime(299);
-    });
-    expect(result.current).toBe("a");
+    value.value = "ab";
+    expect(debounced.value).toBe("a");
 
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(result.current).toBe("ab");
+    vi.advanceTimersByTime(299);
+    expect(debounced.value).toBe("a");
+
+    vi.advanceTimersByTime(1);
+    expect(debounced.value).toBe("ab");
   });
 
   it("restarts the timer on rapid changes", () => {
-    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 300), {
-      initialProps: { value: "a" },
-    });
-    rerender({ value: "ab" });
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    rerender({ value: "abc" });
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    expect(result.current).toBe("a"); // neither intermediate value ever landed
+    const value = ref("a");
+    const debounced = useDebounce(value, 300);
 
-    act(() => {
-      vi.advanceTimersByTime(100);
-    });
-    expect(result.current).toBe("abc");
+    value.value = "ab";
+    vi.advanceTimersByTime(200);
+
+    value.value = "abc";
+    vi.advanceTimersByTime(200);
+
+    expect(debounced.value).toBe("a"); // neither intermediate value ever landed
+
+    vi.advanceTimersByTime(100);
+    expect(debounced.value).toBe("abc");
+  });
+});
+
+describe("debounce function", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("debounces calls", () => {
+    const fn = vi.fn();
+    const debounced = debounce(fn, 200);
+
+    debounced(1);
+    debounced(2);
+    expect(fn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(200);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith(2);
   });
 });

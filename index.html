@@ -5,7 +5,6 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Longan</title>
-    <!-- Match app background before JS/CSS load to avoid a white flash. -->
     <style>
       html,
       body {
@@ -17,7 +16,6 @@
         background: #f7f7f8;
       }
     </style>
-    <!-- Apply the stored theme before first paint to avoid a theme flash. -->
     <script>
       (function () {
         try {
@@ -32,9 +30,8 @@
       })();
     </script>
   </head>
-
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

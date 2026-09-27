@@ -28,7 +28,7 @@ function flattenTranslations(obj: Record<string, unknown>, prefix = ""): Set<str
 }
 
 function extractTKeys(content: string): Set<string> {
-  const pattern = /t\(\s*["']([^"']+?)["']\s*\)/g;
+  const pattern = /\bt\(\s*["']([^"']+?)["']/g;
   const matches = content.matchAll(pattern);
   const keys = new Set<string>();
   for (const match of matches) {
@@ -53,7 +53,7 @@ function walkDir(dir: string): string[] {
     const stat = statSync(fullPath);
     if (stat.isDirectory()) {
       files.push(...walkDir(fullPath));
-    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
+    } else if (entry.endsWith(".ts") || entry.endsWith(".tsx") || entry.endsWith(".vue")) {
       if (!entry.includes(".test.") && !entry.includes(".spec.")) {
         files.push(fullPath);
       }

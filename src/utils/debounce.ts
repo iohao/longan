@@ -1,31 +1,63 @@
-import { useEffect, useState } from 'react';
+import {
+  ref,
+  watch,
+  toValue,
+  getCurrentScope,
+  onScopeDispose,
+  type MaybeRefOrGetter,
+  type Ref,
+} from "vue";
 
 /**
- * 防抖 Hook - 减少高频输入触发的计算开销
- * 
- * @param value 要防抖的值
- * @param delay 延迟时间 (毫秒),默认 300ms
- * @returns 防抖后的值
- * 
- * @example
- * const debouncedSearch = useDebounce(searchQuery, 300);
- * const filtered = useMemo(() => {
- *   if (!debouncedSearch.trim()) return skills;
- *   // filter logic...
- * }, [skills, debouncedSearch]);
+ * 防抖 Composable - 减少高频响应式状态触发的计算开销
+ *
+ * @param source 要防抖的响应式值、Ref 或 Getter
+ * @param delay 延迟时间 (毫秒)，默认 300ms
+ * @returns 只读的防抖后的 Ref
  */
-export function useDebounce<T>(value: T, delay: number = 300): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+export function useDebounce<T>(
+  source: MaybeRefOrGetter<T>,
+  delay: number = 300,
+): Readonly<Ref<T>> {
+  const debouncedValue = ref(toValue(source)) as Ref<T>;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+  watch(
+    () => toValue(source),
+    (newValue) => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        debouncedValue.value = newValue;
+      }, delay);
+    },
+    { flush: "sync" },
+  );
 
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    });
+  }
 
   return debouncedValue;
+}
+
+/**
+ * 经典通用防抖函数
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  fn: T,
+  delay: number = 300,
+): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn(...args);
+    }, delay);
+  };
 }

@@ -1,7 +1,17 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 import { api, errorMessage } from "./api";
 import type { Skill } from "./types";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(async (options) => (options?.defaultPath ? `${options.defaultPath}/chosen` : "/chosen/folder")),
+  save: vi.fn(async (options) => (options?.defaultPath ? options.defaultPath : "/chosen/file.json")),
+}));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  revealItemInDir: vi.fn(async () => undefined),
+  openUrl: vi.fn(async () => undefined),
+}));
 
 describe("errorMessage", () => {
   it("extracts message from a structured error payload", () => {
@@ -163,5 +173,15 @@ describe("api IPC wrappers", () => {
       { cmd: "set_projects_group", args: { projectIds: [9, 10], groupId: 4 } },
       { cmd: "move_project", args: { projectId: 9, direction: "up" } },
     ]);
+  });
+
+  it("invokes file dialog, save dialog, and reveal plugins", async () => {
+    const file = await api.openFileDialog();
+    expect(file).toBe("/chosen/folder");
+
+    const saved = await api.saveFileDialog({ defaultPath: "/custom.json" });
+    expect(saved).toBe("/custom.json");
+
+    await expect(api.revealFile("/tmp/test.txt")).resolves.toBeUndefined();
   });
 });

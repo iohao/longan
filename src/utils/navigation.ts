@@ -1,4 +1,4 @@
-import type { PageKey } from "../components/Sidebar";
+import type { PageKey } from "../types";
 
 export type ProjectDetailTab = "operations" | "skills" | "agents";
 
@@ -49,7 +49,7 @@ type NavigationShortcutEvent = Pick<
 
 export function resolveNavigationShortcut(
   event: NavigationShortcutEvent,
-  platform: string = navigator.platform,
+  platform: string = typeof navigator !== "undefined" ? navigator.platform : "",
 ): PageKey | null {
   const isMac = platform.startsWith("Mac");
   const hasPrimaryModifier = isMac
@@ -72,7 +72,7 @@ export function resolveNavigationShortcut(
 export function registerNavigationShortcuts(
   onNavigate: (page: PageKey) => void,
   target: Window = window,
-  platform: string = navigator.platform,
+  platform: string = typeof navigator !== "undefined" ? navigator.platform : "",
 ) {
   const handleKeyDown = (event: KeyboardEvent) => {
     const nextPage = resolveNavigationShortcut(event, platform);

@@ -79,7 +79,10 @@ export function parseSkillUrl(input: string): ParsedSkillQuery {
           const branch = segments[treeIdx + 1];
           const pathSegments = segments.slice(treeIdx + 2); // path after branch name
           const subpath = pathSegments.join("/");
-          const skillId = explicitSkillId || (pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : undefined) || repo;
+          const skillId =
+            explicitSkillId ||
+            (pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : undefined) ||
+            repo;
           const targetId = `${owner}/${repo}/${skillId}`;
           return {
             isUrl: true,

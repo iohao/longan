@@ -13,9 +13,12 @@ import type {
   LocalSkillPreview,
   Preset,
   PresetProjectReference,
+  PresetReuseMode,
+  PresetReuseResult,
   ProfileImportPreview,
   Project,
   ProjectGroup,
+  ReferenceDetail,
   RegistrySkill,
   Skill,
   SkillInstallProgressEvent,
@@ -69,7 +72,7 @@ export const api = {
   skillReferences: (skillId: number) =>
     invoke<[string[], string[]]>("skill_references", { skillId }),
   skillReferenceDetails: (skillId: number) =>
-    invoke<import("./types").ReferenceDetail[]>("skill_reference_details", { skillId }),
+    invoke<ReferenceDetail[]>("skill_reference_details", { skillId }),
   deleteSkill: (skillId: number) => invoke<void>("delete_skill", { skillId }),
 
   // presets
@@ -80,7 +83,7 @@ export const api = {
     name: string,
     description?: string,
     sourcePresetIds: number[] = [],
-    reuseMode?: import("./types").PresetReuseMode,
+    reuseMode?: PresetReuseMode,
   ) => invoke<number>("create_preset", { name, description, sourcePresetIds, reuseMode }),
   updatePreset: (presetId: number, name: string, description?: string) =>
     invoke<void>("update_preset", { presetId, name, description }),
@@ -90,8 +93,8 @@ export const api = {
   reusePreset: (
     presetId: number,
     sourcePresetIds: number[],
-    mode: import("./types").PresetReuseMode,
-  ) => invoke<import("./types").PresetReuseResult>("reuse_preset", {
+    mode: PresetReuseMode,
+  ) => invoke<PresetReuseResult>("reuse_preset", {
     presetId,
     sourcePresetIds,
     mode,
@@ -156,7 +159,7 @@ export const api = {
   setStorageDir: (dirPath: string) =>
     invoke<StorageInfo>("set_storage_dir", { dirPath }),
   selectDirectory: async (): Promise<string> => {
-    const path = await open({ directory: true }) as string | null;
+    const path = (await open({ directory: true })) as string | null;
     if (!path) {
       throw new Error("No directory selected");
     }
@@ -184,16 +187,32 @@ export const api = {
   previewProfileImport: (profileJson: string) =>
     invoke<ProfileImportPreview>("preview_profile_import", { profileJson }),
   importProfile: (profileJson: string) => invoke<ImportResult>("import_profile", { profileJson }),
-  
+
   // File dialog helpers
-  openFileDialog: async (filters?: Array<{ name: string; extensions: string[] }>): Promise<string | null> => {
+  openFileDialog: async (
+    filters?: Array<{ name: string; extensions: string[] }>,
+  ): Promise<string | null> => {
     const path = await open({ filters });
-    return (typeof path === "string" ? path : null);
+    return typeof path === "string" ? path : null;
   },
 };
 
+// Desktop system native dialog helpers
+export async function selectFolder(): Promise<string | null> {
+  const result = await open({ directory: true, multiple: false });
+  return typeof result === "string" ? result : null;
+}
+
+export async function revealPath(path: string): Promise<void> {
+  await revealItemInDir(path);
+}
+
+export async function savePresetFile(options?: SaveDialogOptions): Promise<string | null> {
+  return await save(options);
+}
+
 export function listenForSkillInstallProgress(
-  onProgress: (progress: SkillInstallProgressEvent) => void
+  onProgress: (progress: SkillInstallProgressEvent) => void,
 ): Promise<UnlistenFn> {
   return listen<SkillInstallProgressEvent>(SKILL_INSTALL_PROGRESS_EVENT, (event) => {
     onProgress(event.payload);
@@ -201,7 +220,7 @@ export function listenForSkillInstallProgress(
 }
 
 export function listenForSkillUpdateProgress(
-  onProgress: (progress: SkillUpdateProgressEvent) => void
+  onProgress: (progress: SkillUpdateProgressEvent) => void,
 ): Promise<UnlistenFn> {
   return listen<SkillUpdateProgressEvent>(SKILL_UPDATE_PROGRESS_EVENT, (event) => {
     onProgress(event.payload);

@@ -27,6 +27,7 @@
     "clear": "Clear",
     "installs": "installs",
     "error": "Something went wrong",
+    "loadFailed": "Failed to load",
     "exporting": "Exporting...",
     "importing": "Importing..."
   },
@@ -184,6 +185,7 @@
     "updateAllBtn": "Update all {{count}}",
     "batchUpdatePrompt": "{{count}} skill(s) have updates available. Click the \"Batch Update\" button in the top-right corner to upgrade quickly",
     "referenceCount": "Referenced {{count}} time(s)",
+    "referenceLocationsCount": " location(s) reference this skill",
     "viewReferences": "View references for skill {{name}}",
     "viewModeTree": "Tree View",
     "viewModeFlat": "Flat View",

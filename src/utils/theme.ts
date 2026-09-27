@@ -19,7 +19,7 @@ export function getSystemTheme(): "dark" | "light" {
 
 export function applyTheme(mode: ThemeMode) {
   localStorage.setItem(THEME_KEY, mode);
-  
+
   const activeTheme = mode === "system" ? getSystemTheme() : mode;
   const root = document.documentElement;
 
@@ -41,7 +41,10 @@ export function initTheme(): () => void {
   const initialMode = getStoredTheme();
   applyTheme(initialMode);
 
-  const mediaQuery = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const mediaQuery =
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
   const handleSystemChange = () => {
     if (getStoredTheme() === "system") {
       applyTheme("system");

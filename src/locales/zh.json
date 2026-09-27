@@ -27,6 +27,7 @@
     "clear": "清除",
     "installs": "安装量",
     "error": "出错了",
+    "loadFailed": "加载失败",
     "exporting": "正在导出…",
     "importing": "正在导入…"
   },
@@ -184,6 +185,7 @@
     "updateAllBtn": "一键更新所有 {{count}} 个",
     "batchUpdatePrompt": "发现 {{count}} 个可更新的技能，点击右上角「一键批量更新」快速升级",
     "referenceCount": "被引用 {{count}} 次",
+    "referenceLocationsCount": " 个位置引用了这个技能",
     "viewReferences": "查看 Skill「{{name}}」的引用",
     "viewModeTree": "树状视图",
     "viewModeFlat": "平铺视图",

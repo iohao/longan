@@ -1,24 +1,23 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
+import path from "node:path";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
-
-  // Tauri webviews are modern engines; skip legacy transpilation.
+export default defineConfig({
+  plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "./src"),
+    },
+  },
+  // Tauri webview 使用现代 Chromium/WebKit，跳过旧版降级转译
   build: {
     target: "esnext",
   },
-
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  // Tauri 要求固定的开发服务器端口与清晰的错误输出
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 13000,
     strictPort: true,
@@ -31,8 +30,12 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore backend and local scratch files
-      ignored: ["**/src-tauri/**", "**/_local/**", "**/.*/**", "**/openwiki/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/_local/**",
+        "**/.*/**",
+        "**/openwiki/**",
+      ],
     },
   },
-}));
+});

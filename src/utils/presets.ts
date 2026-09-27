@@ -31,8 +31,8 @@ export function sortPresets(
   });
 
   return [...presets].sort((a, b) => {
-    const orderA = orderMap.hasOwnProperty(a.id) ? orderMap[a.id] : Number.MAX_SAFE_INTEGER;
-    const orderB = orderMap.hasOwnProperty(b.id) ? orderMap[b.id] : Number.MAX_SAFE_INTEGER;
+    const orderA = a.id in orderMap ? orderMap[a.id] : Number.MAX_SAFE_INTEGER;
+    const orderB = b.id in orderMap ? orderMap[b.id] : Number.MAX_SAFE_INTEGER;
     return orderA - orderB;
   });
 }

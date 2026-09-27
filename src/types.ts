@@ -7,12 +7,12 @@ export interface Skill {
   repo: string | null;
   dir_path: string;
   description: string | null;
-  latest_sha: string | null;  // Latest commit SHA for update detection
+  latest_sha: string | null; // Latest commit SHA for update detection
   source_path?: string | null; // Repository-relative skill directory
-  tree_sha?: string | null;    // Installed skill directory Git tree SHA
+  tree_sha?: string | null; // Installed skill directory Git tree SHA
   status: "ok" | "update_available" | "missing";
   updated_at: string;
-  source_url?: string | null;   // skills.sh registry ID
+  source_url?: string | null; // skills.sh registry ID
   github_source?: string | null; // GitHub source
   sub_skills?: SubSkillInfo[];
 }
@@ -289,3 +289,14 @@ export interface ImportResult {
   unresolved_preset_skills: string[];
   error?: string | null;
 }
+
+/// Top-level sidebar page keys
+export type PageKey =
+  | "market"
+  | "installed"
+  | "presets"
+  | "agents"
+  | "migration"
+  | "projects"
+  | "settings"
+  | "tools";

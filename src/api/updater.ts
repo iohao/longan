@@ -33,7 +33,7 @@ export async function checkForPendingAppUpdate(): Promise<PendingAppUpdate | nul
 
 export async function installPendingAppUpdate(
   update: PendingAppUpdate,
-  onProgress?: (event: AppUpdateProgressEvent) => void
+  onProgress?: (event: AppUpdateProgressEvent) => void,
 ): Promise<void> {
   if (!isTauriEnvironment()) {
     return;

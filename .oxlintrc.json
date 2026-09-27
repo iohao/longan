@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "rules": {
+    "no-unused-vars": "error",
+    "typescript/no-explicit-any": "off"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/src-tauri/**",
+    "**/_local/**",
+    "**/scripts/**"
+  ]
+}

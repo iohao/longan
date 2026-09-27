@@ -1,10 +1,6 @@
-import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { vi } from "vitest";
 
-// Node 25 ships a partial Web Storage global that shadows jsdom's working
-// implementation (nodejs/node#60303, vitest-dev/vitest#8757); replace both
-// storages with a functional in-memory one so behavior matches every runtime.
+// Node / Bun / jsdom Web Storage mock for consistent test behavior across runtimes
 function createMemoryStorage(): Storage {
   const store = new Map<string, string>();
   return {
@@ -27,6 +23,19 @@ for (const name of ["localStorage", "sessionStorage"] as const) {
   });
 }
 
-// RTL's automatic cleanup needs a global afterEach, which we don't enable
-// (globals: false); register it explicitly instead.
-afterEach(cleanup);
+// Mock window.matchMedia
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}

@@ -1,0 +1,150 @@
+@import "tailwindcss" source(none);
+@source "./";
+@source "../";
+
+@theme {
+  /* Graphite neutral 灰度色阶 (低饱和、纯黑质感)，完美替代默认 slate */
+  --color-slate-50: #f7f7f8;
+  --color-slate-100: #ededf0;
+  --color-slate-200: #d9d9de;
+  --color-slate-300: #b3b3bc;
+  --color-slate-400: #8b8b96;
+  --color-slate-500: #6b6b76;
+  --color-slate-600: #52525b;
+  --color-slate-700: #3a3a42;
+  --color-slate-800: #26262c;
+  --color-slate-900: #161619;
+  --color-slate-950: #0a0a0c;
+
+  /* 主题翡翠绿: 加深一级确保对比度 >= 4.5:1 */
+  --color-emerald-500: #059669;
+  --color-emerald-600: #047857;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  :root {
+    color-scheme: dark light;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+
+    /* 毛玻璃面板变量 */
+    --glass-panel-bg: rgba(22, 22, 25, 0.85);
+    --glass-card-bg: rgba(30, 30, 35, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-card-shadow: none;
+  }
+
+  /* 亮色模式反转适配 */
+  html.light {
+    --color-slate-50: #111114;
+    --color-slate-100: #1b1b21;
+    --color-slate-200: #2b2b33;
+    --color-slate-300: #43434c;
+    --color-slate-400: #565660;
+    --color-slate-500: #71717c;
+    --color-slate-600: #a5a5b0;
+    --color-slate-700: #d1d1d8;
+    --color-slate-800: #e2e2e7;
+    --color-slate-900: #eeeef1;
+    --color-slate-950: #f7f7f8;
+
+    --color-emerald-100: #022c22;
+    --color-emerald-200: #064e3b;
+    --color-emerald-300: #065f46;
+    --color-emerald-400: #047857;
+    --color-amber-200: #78350f;
+    --color-amber-300: #92400e;
+    --color-amber-400: #b45309;
+    --color-rose-300: #9f1239;
+    --color-rose-400: #be123c;
+    --color-sky-300: #075985;
+    --color-sky-400: #0369a1;
+    --color-purple-400: #7e22ce;
+
+    --glass-panel-bg: rgba(255, 255, 255, 0.9);
+    --glass-card-bg: rgba(255, 255, 255, 0.92);
+    --glass-border: #e2e2e7;
+    --glass-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  body {
+    background-color: var(--color-slate-950);
+    color: var(--color-slate-100);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 139, 150, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 139, 150, 0.45);
+}
+
+.glass-panel {
+  background: var(--glass-panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-card {
+  background: var(--glass-card-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-card-shadow);
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
+    transform 0.2s ease-in-out;
+}
+
+.glass-card:hover {
+  border-color: rgba(5, 150, 105, 0.45);
+  box-shadow: 0 4px 24px -2px rgba(5, 150, 105, 0.15);
+  transform: translateY(-1px);
+}
+
+.glass-card.skill-list-row:hover {
+  box-shadow: var(--glass-card-shadow);
+  transform: none;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.35);
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+html.light input {
+  background-color: #ffffff !important;
+  border-color: #d1d1d8 !important;
+  color: #1b1b21 !important;
+}
+
+html.light input::placeholder {
+  color: #8b8b96 !important;
+}

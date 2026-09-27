@@ -39,8 +39,8 @@ export function matchesSkillSearch(skill: ListedSkill, debouncedQuery: string): 
         sub.dir_path.toLowerCase().includes(q) ||
         sub.name.toLowerCase().includes(rawQ) ||
         Boolean(sub.description && sub.description.toLowerCase().includes(rawQ)) ||
-        sub.dir_path.toLowerCase().includes(rawQ)
-    )
+        sub.dir_path.toLowerCase().includes(rawQ),
+    ),
   );
 
   return (
@@ -75,15 +75,18 @@ export function groupSkillsByRepo(
   });
 
   // 2. Group skills by repository / local
-  const groupMap = new Map<string, {
-    key: string;
-    sourceType: "net" | "local";
-    owner: string | null;
-    repo: string | null;
-    title: string;
-    githubUrl: string | null;
-    allSkills: ListedSkill[];
-  }>();
+  const groupMap = new Map<
+    string,
+    {
+      key: string;
+      sourceType: "net" | "local";
+      owner: string | null;
+      repo: string | null;
+      title: string;
+      githubUrl: string | null;
+      allSkills: ListedSkill[];
+    }
+  >();
 
   for (const skill of filteredCategorySkills) {
     let key: string;

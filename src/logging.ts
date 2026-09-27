@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-type FrontendLogLevel = "debug" | "info" | "warn" | "error";
+export type FrontendLogLevel = "debug" | "info" | "warn" | "error";
 
-interface FrontendLogEvent {
+export interface FrontendLogEvent {
   level: FrontendLogLevel;
   message: string;
   stack?: string;
