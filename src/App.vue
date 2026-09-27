@@ -91,29 +91,32 @@ onUnmounted(() => {
 
 <template>
   <AppErrorBoundary>
-    <div class="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
-      <Sidebar />
+    <div class="flex flex-col h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
+      <UpdateBanner />
 
-      <main
-        ref="scrollContainerRef"
-        class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-none bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950"
-      >
-        <UpdateBanner />
-        <div
-          v-if="debugStore.debugMode"
-          class="px-8 py-3 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between shrink-0"
+      <div class="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar />
+
+        <main
+          ref="scrollContainerRef"
+          class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-none bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950"
         >
-          <PageIdBadge />
-        </div>
+          <div
+            v-if="debugStore.debugMode"
+            class="px-8 py-3 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between shrink-0"
+          >
+            <PageIdBadge />
+          </div>
 
-        <div class="flex-1 p-8 flex flex-col">
-          <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
-        </div>
-      </main>
+          <div class="flex-1 p-8 flex flex-col">
+            <router-view v-slot="{ Component }">
+              <transition name="fade" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
+          </div>
+        </main>
+      </div>
     </div>
   </AppErrorBoundary>
 </template>

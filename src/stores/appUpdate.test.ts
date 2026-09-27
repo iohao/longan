@@ -187,4 +187,16 @@ describe("useAppUpdateStore", () => {
 
     expect(updaterMocks.checkForPendingAppUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("dismisses the update banner", async () => {
+    updaterMocks.checkForPendingAppUpdate.mockResolvedValue(mockUpdate);
+    const store = useAppUpdateStore();
+    await store.checkForUpdate();
+    expect(store.availableUpdate).toEqual(mockUpdate);
+
+    store.dismissBanner();
+    expect(store.availableUpdate).toBeNull();
+    expect(store.isInstallingUpdate).toBe(false);
+  });
 });
+

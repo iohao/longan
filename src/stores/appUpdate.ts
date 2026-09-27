@@ -41,6 +41,10 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
   const initialized = ref<boolean>(false);
 
   async function checkForUpdate(): Promise<PendingAppUpdate | null> {
+    if (availableUpdate.value && (availableUpdate.value as { isMock?: boolean }).isMock) {
+      return availableUpdate.value;
+    }
+
     if (updateStatus.value === "checking" || isInstallingUpdate.value) {
       return availableUpdate.value;
     }
@@ -67,6 +71,32 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
   async function installUpdate(): Promise<void> {
     const updateToInstall = availableUpdate.value;
     if (!updateToInstall || isInstallingUpdate.value) return;
+
+    if ((updateToInstall as { isMock?: boolean }).isMock) {
+      isInstallingUpdate.value = true;
+      updateStatus.value = "installing";
+      updateErrorMessage.value = null;
+      const totalBytes = 35 * 1024 * 1024;
+      updateContentLength.value = totalBytes;
+      updateDownloadedBytes.value = 0;
+
+      await new Promise<void>((resolve) => {
+        const interval = setInterval(() => {
+          if (updateDownloadedBytes.value < totalBytes) {
+            updateDownloadedBytes.value = Math.min(
+              totalBytes,
+              updateDownloadedBytes.value + 3.5 * 1024 * 1024,
+            );
+          } else {
+            clearInterval(interval);
+            isInstallingUpdate.value = false;
+            updateStatus.value = "upToDate";
+            resolve();
+          }
+        }, 300);
+      });
+      return;
+    }
 
     isInstallingUpdate.value = true;
     updateStatus.value = "installing";
@@ -97,9 +127,54 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
     }
   }
 
+  function triggerMockUpdate(
+    mode: "available" | "downloading" | "clear" = "available",
+  ): void {
+    if (mode === "clear") {
+      availableUpdate.value = null;
+      isInstallingUpdate.value = false;
+      updateDownloadedBytes.value = 0;
+      updateContentLength.value = null;
+      updateStatus.value = "idle";
+      return;
+    }
+
+    const mockObj = {
+      version: "2.1.0",
+      currentVersion: currentVersion.value ?? "2.0.0",
+      date: new Date().toISOString(),
+      body: "Mock update for testing layout and progress bar",
+      isMock: true,
+    };
+
+    availableUpdate.value = mockObj as unknown as PendingAppUpdate;
+
+    if (mode === "downloading") {
+      isInstallingUpdate.value = true;
+      updateStatus.value = "installing";
+      updateContentLength.value = 35 * 1024 * 1024;
+      updateDownloadedBytes.value = 14.8 * 1024 * 1024;
+    } else {
+      isInstallingUpdate.value = false;
+      updateStatus.value = "available";
+      updateContentLength.value = null;
+      updateDownloadedBytes.value = 0;
+    }
+  }
+
+  function dismissBanner(): void {
+    availableUpdate.value = null;
+    isInstallingUpdate.value = false;
+  }
+
   function init(): () => void {
     if (initialized.value) return () => {};
     initialized.value = true;
+
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      (window as unknown as { __mockAppUpdate?: typeof triggerMockUpdate }).__mockAppUpdate =
+        triggerMockUpdate;
+    }
 
     void fetchCurrentAppVersion()
       .then((ver) => {
@@ -129,6 +204,8 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
     // Actions
     checkForUpdate,
     installUpdate,
+    triggerMockUpdate,
+    dismissBanner,
     init,
   };
 });
