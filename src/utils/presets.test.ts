@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Preset } from "../types";
 import {
+  buildInheritedPresetMap,
   buildInheritedSkillGroups,
   buildPresetSkillSourceGroups,
   parsePresetOrder,
@@ -105,6 +106,90 @@ describe("buildPresetSkillSourceGroups", () => {
       { presetId: 2, presetName: "B", depth: 1, skillIds: [20] },
       { presetId: 1, presetName: "A", depth: 0, skillIds: [10] },
     ]);
+  });
+});
+
+describe("buildInheritedPresetMap", () => {
+  it("collects multi-level inherited presets with root sources", () => {
+    const presets = [
+      preset(1, "A", [10], [2]),
+      preset(2, "B", [20], [3]),
+      preset(3, "C", [30], []),
+    ];
+
+    const map = buildInheritedPresetMap(presets, [1]);
+    expect(map.size).toBe(2);
+    expect(map.get(2)).toEqual({
+      presetId: 2,
+      sourcePresetIds: [1],
+      sourcePresetNames: ["A"],
+    });
+    expect(map.get(3)).toEqual({
+      presetId: 3,
+      sourcePresetIds: [1],
+      sourcePresetNames: ["A"],
+    });
+  });
+
+  it("handles diamond inheritance by tracking all root sources without duplicates", () => {
+    const presets = [
+      preset(1, "A", [10], [2]),
+      preset(2, "B", [20], [3]),
+      preset(3, "C", [30], []),
+      preset(4, "D", [40], [2]),
+    ];
+
+    const map = buildInheritedPresetMap(presets, [1, 4]);
+    expect(map.size).toBe(2);
+    expect(map.get(2)).toEqual({
+      presetId: 2,
+      sourcePresetIds: [1, 4],
+      sourcePresetNames: ["A", "D"],
+    });
+    expect(map.get(3)).toEqual({
+      presetId: 3,
+      sourcePresetIds: [1, 4],
+      sourcePresetNames: ["A", "D"],
+    });
+  });
+
+  it("excludes directly selected presets from the inherited map while still traversing their children", () => {
+    const presets = [
+      preset(1, "A", [10], [2]),
+      preset(2, "B", [20], [3]),
+      preset(3, "C", [30], []),
+    ];
+
+    // User directly selected both 1 and 2
+    const map = buildInheritedPresetMap(presets, [1, 2]);
+    expect(map.size).toBe(1);
+    expect(map.has(2)).toBe(false);
+    expect(map.get(3)).toEqual({
+      presetId: 3,
+      sourcePresetIds: [1, 2],
+      sourcePresetNames: ["A", "B"],
+    });
+  });
+
+  it("safely handles circular references and missing IDs", () => {
+    const presets = [
+      preset(1, "A", [10], [2, 999]),
+      preset(2, "B", [20], [1]),
+    ];
+
+    const map = buildInheritedPresetMap(presets, [1, 404]);
+    expect(map.size).toBe(1);
+    expect(map.get(2)).toEqual({
+      presetId: 2,
+      sourcePresetIds: [1],
+      sourcePresetNames: ["A"],
+    });
+  });
+
+  it("returns empty map when no roots are selected", () => {
+    const presets = [preset(1, "A", [10], [2]), preset(2, "B", [20])];
+    const map = buildInheritedPresetMap(presets, []);
+    expect(map.size).toBe(0);
   });
 });
 

@@ -25,6 +25,7 @@ import {
 import { api, errorMessage } from "@/api";
 import type { Agent, EffectiveSkill, Preset, Project, Skill, SyncReport } from "@/types";
 import {
+  buildInheritedPresetMap,
   buildPresetSkillSourceGroups,
   parsePresetOrder,
   sortPresets,
@@ -270,6 +271,22 @@ const availableForAttachment = computed(() => {
 });
 
 const sortedPresets = computed(() => sortPresets(presets.value, presetOrder.value));
+
+const inheritedPresetMap = computed(() =>
+  buildInheritedPresetMap(presets.value, project.value?.preset_ids ?? []),
+);
+
+const presetCountBadgeText = computed(() => {
+  const selectedCount = project.value?.preset_ids.length ?? 0;
+  const inheritedCount = inheritedPresetMap.value.size;
+  if (inheritedCount > 0) {
+    return t("projects.presetSelectedAndInheritedCount", {
+      selected: selectedCount,
+      inherited: inheritedCount,
+    });
+  }
+  return t("projects.presetSelectedCount", { count: selectedCount });
+});
 
 const groupedEffective = computed(() => {
   const direct = effective.value.filter((item) => item.via === "direct");
@@ -678,7 +695,7 @@ const projectTabs = computed<TabItem[]>(() => [
             <span>{{ t("projects.presets") }}</span>
           </h2>
           <Badge variant="neutral" class="text-[10px] px-1.5 py-0">
-            {{ project.preset_ids.length }} selected
+            {{ presetCountBadgeText }}
           </Badge>
         </div>
 
@@ -691,8 +708,17 @@ const projectTabs = computed<TabItem[]>(() => [
               'text-xs px-3 py-1.5 rounded-lg border font-medium transition-all flex items-center gap-1.5 relative overflow-hidden cursor-pointer',
               project.preset_ids.includes(p.id)
                 ? 'bg-emerald-500/30 text-emerald-100 border-emerald-500/50'
-                : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 hover:border-slate-700',
+                : inheritedPresetMap.has(p.id)
+                  ? 'bg-slate-900/40 border-dashed border-sky-500/60 text-slate-300 hover:bg-slate-800/60 hover:text-slate-100 hover:border-sky-400'
+                  : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 hover:border-slate-700',
             ]"
+            :title="
+              !project.preset_ids.includes(p.id) && inheritedPresetMap.has(p.id)
+                ? t('projects.presetInheritedFrom', {
+                    sources: inheritedPresetMap.get(p.id)?.sourcePresetNames.join(', '),
+                  })
+                : undefined
+            "
             @click="togglePreset(p.id)"
           >
             <span>{{ p.name }}</span>

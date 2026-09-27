@@ -145,6 +145,62 @@ export function buildPresetSkillSourceGroups(
     );
 }
 
+export interface InheritedPresetInfo {
+  presetId: number;
+  sourcePresetIds: number[];
+  sourcePresetNames: string[];
+}
+
+export function buildInheritedPresetMap(
+  presets: readonly Preset[],
+  rootPresetIds: readonly number[],
+): Map<number, InheritedPresetInfo> {
+  const presetsById = new Map(presets.map((preset) => [preset.id, preset]));
+  const rootPresetIdSet = new Set(rootPresetIds);
+  const result = new Map<number, InheritedPresetInfo>();
+
+  for (const rootId of rootPresetIds) {
+    const rootPreset = presetsById.get(rootId);
+    if (!rootPreset) continue;
+
+    const visited = new Set<number>([rootId]);
+    const queue = [...rootPreset.included_preset_ids];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const currentPreset = presetsById.get(currentId);
+      if (!currentPreset) continue;
+
+      if (!rootPresetIdSet.has(currentId)) {
+        let info = result.get(currentId);
+        if (!info) {
+          info = {
+            presetId: currentId,
+            sourcePresetIds: [],
+            sourcePresetNames: [],
+          };
+          result.set(currentId, info);
+        }
+        if (!info.sourcePresetIds.includes(rootId)) {
+          info.sourcePresetIds.push(rootId);
+          info.sourcePresetNames.push(rootPreset.name);
+        }
+      }
+
+      for (const nextId of currentPreset.included_preset_ids) {
+        if (!visited.has(nextId)) {
+          queue.push(nextId);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 export function replacePresetDirectSkills(
   presets: Preset[],
   presetId: number,

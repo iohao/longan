@@ -305,4 +305,42 @@ describe("ProjectDetailPage", () => {
 
     expect(buttons).toEqual(["C", "A", "B"]);
   });
+
+  it("renders inherited preset tags with sky dashed border, tooltip and composite count badge", async () => {
+    const { wrapper } = mountPage();
+    await flushPromises();
+
+    // Check composite badge
+    const badge = wrapper.find(".flex.items-center.justify-between.mb-3 span");
+    expect(badge.text()).toBe("Preset 标签");
+    expect(wrapper.text()).toContain("1 直接 · 2 继承");
+
+    // Check Preset A (id 1, directly selected)
+    const buttonA = wrapper.findAll(".flex.flex-wrap.gap-2 button").find((b) => b.text().includes("A"));
+    expect(buttonA).toBeDefined();
+    expect(buttonA!.classes()).toContain("border-emerald-500/50");
+    expect(buttonA!.classes()).not.toContain("border-dashed");
+    expect(buttonA!.attributes("title")).toBeUndefined();
+    expect(buttonA!.find("svg").exists()).toBe(false);
+
+    // Check Preset B (id 2, inherited from A)
+    const buttonB = wrapper.findAll(".flex.flex-wrap.gap-2 button").find((b) => b.text().includes("B"));
+    expect(buttonB).toBeDefined();
+    expect(buttonB!.classes()).toContain("border-dashed");
+    expect(buttonB!.classes()).toContain("border-sky-500/60");
+    expect(buttonB!.attributes("title")).toBe("继承自：A");
+    expect(buttonB!.find("svg").exists()).toBe(false);
+
+    // Check Preset C (id 3, inherited from A via B)
+    const buttonC = wrapper.findAll(".flex.flex-wrap.gap-2 button").find((b) => b.text().includes("C"));
+    expect(buttonC).toBeDefined();
+    expect(buttonC!.classes()).toContain("border-dashed");
+    expect(buttonC!.classes()).toContain("border-sky-500/60");
+    expect(buttonC!.attributes("title")).toBe("继承自：A");
+
+    // Clicking inherited Preset B triggers promotion to directly selected
+    await buttonB!.trigger("click");
+    await flushPromises();
+    expect(mocks.setProjectPreset).toHaveBeenCalledWith(project.id, 2, true);
+  });
 });
