@@ -80,6 +80,7 @@ let cleanupUpdateProgress: (() => void) | undefined;
 function maintenanceBlocked(): boolean {
   return (
     checkingUpdatesFlag ||
+    skillUpdateStore.isChecking ||
     rescanningLocalFlag ||
     batchUpdatingFlag ||
     lockedUpdateIds.size > 0 ||
@@ -389,18 +390,22 @@ const updatableCount = computed(
     skills.value.filter((s) => s.status === "update_available" && s.source_type === "net").length,
 );
 
+const isCheckingUpdates = computed(
+  () => checkingUpdates.value || skillUpdateStore.isChecking,
+);
+
 const updatesAtCapacity = computed(() => runningUpdateCount.value >= MAX_CONCURRENT_UPDATES);
 const batchBlocked = computed(() => batchUpdating.value || lockedUpdateIds.size > 0);
 const maintenanceActionBlocked = computed(
   () =>
-    checkingUpdates.value ||
+    isCheckingUpdates.value ||
     rescanningLocal.value ||
     batchBlocked.value ||
     runningUpdateCount.value > 0,
 );
 
 const checkUpdatesLabel = computed(() =>
-  checkingUpdates.value ? t("installed.checkingUpdates") : t("installed.checkUpdates"),
+  isCheckingUpdates.value ? t("installed.checkingUpdates") : t("installed.checkUpdates"),
 );
 const moreActionsLabel = computed(() =>
   rescanningLocal.value ? t("installed.rescanningLocal") : t("installed.moreActions"),
@@ -425,12 +430,12 @@ const moreActionsLabel = computed(() =>
           type="button"
           :disabled="maintenanceActionBlocked"
           :aria-label="checkUpdatesLabel"
-          :aria-busy="checkingUpdates"
+          :aria-busy="isCheckingUpdates"
           :title="checkUpdatesLabel"
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/70 text-slate-300 transition-colors hover:border-emerald-500/50 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50"
           @click="checkForUpdates"
         >
-          <RefreshCw :class="['h-4 w-4', checkingUpdates ? 'animate-spin' : '']" />
+          <RefreshCw :class="['h-4 w-4', isCheckingUpdates ? 'animate-spin' : '']" />
         </button>
 
         <div ref="actionsMenuRef" class="relative">
@@ -470,7 +475,7 @@ const moreActionsLabel = computed(() =>
         <button
           v-if="updatableCount > 0"
           type="button"
-          :disabled="batchBlocked || checkingUpdates || rescanningLocal"
+          :disabled="batchBlocked || isCheckingUpdates || rescanningLocal"
           :title="t('installed.updatesFound', { count: updatableCount })"
           class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer shadow-lg shadow-amber-600/20 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
           @click="updateAllUpdatableSkills"

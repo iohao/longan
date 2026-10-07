@@ -3,6 +3,7 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import i18n, { setLanguage } from "@/i18n";
 import type { ListedSkill, SkillUpdateProgressEvent } from "@/types";
+import { useSkillUpdateStore } from "@/stores/skillUpdate";
 import InstalledPage from "./InstalledPage.vue";
 
 const skills: ListedSkill[] = [
@@ -256,5 +257,23 @@ describe("InstalledPage", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("obra/superpowers");
+  });
+
+  it("reflects background update check in refresh button", async () => {
+    const store = useSkillUpdateStore();
+    const wrapper = mount(InstalledPage, {
+      global: { plugins: [i18n] },
+    });
+    await flushPromises();
+
+    const refreshBtn = wrapper.find('button[aria-label="检测 Skill 更新"]');
+    expect(refreshBtn.exists()).toBe(true);
+    expect(refreshBtn.attributes("aria-busy")).toBe("false");
+
+    store.isChecking = true;
+    await flushPromises();
+
+    expect(refreshBtn.attributes("aria-busy")).toBe("true");
+    expect(refreshBtn.attributes("disabled")).toBeDefined();
   });
 });

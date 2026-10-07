@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use futures_util::stream::{self, StreamExt};
 use rusqlite::Connection;
 
 use crate::db::repo;
@@ -8,6 +9,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::github;
 
 const LAST_CHECK_KEY: &str = "last_skill_update_check_at";
+const MAX_CONCURRENT_NETWORK_CHECKS: usize = 6;
 
 /// Checks if an automatic update check should run, given the minimum interval in seconds.
 pub fn should_auto_check(conn: &Connection, interval_secs: u64) -> AppResult<bool> {
@@ -39,18 +41,35 @@ pub fn update_last_check_timestamp(conn: &Connection) -> AppResult<()> {
     repo::set_setting(conn, LAST_CHECK_KEY, &now_ts.to_string())
 }
 
-/// Network phase: fetch the latest SHA for each unique repo.
+/// Network phase: fetch the latest SHA for each unique repo in parallel with bounded concurrency.
 /// `repos` is a list of (owner, repo) pairs, already deduplicated.
 pub async fn fetch_latest_commits(
     client: &reqwest::Client,
     repos: &[(String, String)],
     token: Option<&str>,
 ) -> AppResult<HashMap<(String, String), github::Commit>> {
-    let mut commits = HashMap::new();
+    let mut tasks = Vec::with_capacity(repos.len());
     for (owner, repo_name) in repos {
-        match github::latest_commit(client, owner, repo_name, token).await {
+        let owner = owner.clone();
+        let repo_name = repo_name.clone();
+        let client = client.clone();
+        let token = token.map(str::to_string);
+        tasks.push(async move {
+            let res = github::latest_commit(&client, &owner, &repo_name, token.as_deref()).await;
+            (owner, repo_name, res)
+        });
+    }
+
+    let results: Vec<_> = stream::iter(tasks)
+        .buffer_unordered(MAX_CONCURRENT_NETWORK_CHECKS)
+        .collect()
+        .await;
+
+    let mut commits = HashMap::new();
+    for (owner, repo_name, result) in results {
+        match result {
             Ok(commit) => {
-                commits.insert((owner.clone(), repo_name.clone()), commit);
+                commits.insert((owner, repo_name), commit);
             }
             Err(AppError::Network(msg)) if msg.contains("401") => {
                 // Skip private/unauthorized repos - they'll remain with existing SHA
@@ -92,7 +111,7 @@ pub fn repos_to_check(conn: &Connection) -> AppResult<Vec<(String, String)>> {
     Ok(repos)
 }
 
-/// DB phase: apply fetched SHAs, returning how many skills became updatable.
+/// DB phase: apply fetched SHAs in parallel, returning how many skills became updatable.
 pub async fn fetch_skill_tree_shas(
     client: &reqwest::Client,
     skills: &[crate::models::Skill],
@@ -113,21 +132,38 @@ pub async fn fetch_skill_tree_shas(
             }
         }
     }
+
+    let mut tasks = Vec::with_capacity(paths_by_repo.len());
     for ((owner, repo_name), paths) in paths_by_repo {
         let commit = &commits[&(owner.clone(), repo_name.clone())];
-        let source_paths = paths
-            .iter()
-            .map(|(_, source_path)| source_path.clone())
-            .collect::<Vec<_>>();
-        let resolved = github::path_tree_shas(
-            client,
-            &owner,
-            &repo_name,
-            token,
-            &commit.tree_sha,
-            &source_paths,
-        )
-        .await?;
+        let root_tree_sha = commit.tree_sha.clone();
+        let client = client.clone();
+        let token = token.map(str::to_string);
+        tasks.push(async move {
+            let source_paths = paths
+                .iter()
+                .map(|(_, source_path)| source_path.clone())
+                .collect::<Vec<_>>();
+            let resolved = github::path_tree_shas(
+                &client,
+                &owner,
+                &repo_name,
+                token.as_deref(),
+                &root_tree_sha,
+                &source_paths,
+            )
+            .await?;
+            Ok::<_, AppError>((paths, resolved))
+        });
+    }
+
+    let results: Vec<_> = stream::iter(tasks)
+        .buffer_unordered(MAX_CONCURRENT_NETWORK_CHECKS)
+        .collect()
+        .await;
+
+    for res in results {
+        let (paths, resolved) = res?;
         for (skill_id, source_path) in paths {
             tree_shas.insert(skill_id, resolved.get(&source_path).cloned().flatten());
         }

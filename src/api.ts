@@ -29,6 +29,7 @@ import type {
 
 const SKILL_INSTALL_PROGRESS_EVENT = "skill-install-progress";
 const SKILL_UPDATE_PROGRESS_EVENT = "skill-update-progress";
+const SKILL_UPDATE_CHECKING_EVENT = "skill-update-checking";
 const SKILLS_CHANGED_EVENT = "skills-changed";
 
 // Thin typed wrappers over the Tauri commands.
@@ -229,6 +230,14 @@ export function listenForSkillUpdateProgress(
 
 export function listenForSkillsChanged(onChanged: () => void): Promise<UnlistenFn> {
   return listen(SKILLS_CHANGED_EVENT, onChanged);
+}
+
+export function listenForSkillUpdateChecking(
+  onChecking: (isChecking: boolean) => void,
+): Promise<UnlistenFn> {
+  return listen<boolean>(SKILL_UPDATE_CHECKING_EVENT, (event) => {
+    onChecking(event.payload);
+  });
 }
 
 /** Human-readable message from a command rejection. */

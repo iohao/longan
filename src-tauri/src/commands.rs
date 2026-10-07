@@ -258,7 +258,20 @@ fn normalize_github_token(token: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+struct UpdateCheckingGuard {
+    app: Option<AppHandle>,
+}
+
+impl Drop for UpdateCheckingGuard {
+    fn drop(&mut self) {
+        if let Some(ref app) = self.app {
+            let _ = app.emit("skill-update-checking", false);
+        }
+    }
+}
+
 pub async fn check_updates_internal(
+    app: Option<&AppHandle>,
     state: &AppState,
     trigger: UpdateCheckTrigger,
 ) -> AppResult<UpdateCheckOutcome> {
@@ -278,6 +291,11 @@ pub async fn check_updates_internal(
         let repos = updater::repos_to_check(&conn)?;
         (token, repos)
     };
+
+    if let Some(app_handle) = app {
+        let _ = app_handle.emit("skill-update-checking", true);
+    }
+    let _checking_guard = UpdateCheckingGuard { app: app.cloned() };
 
     if repos.is_empty() {
         let conn = state.db.conn.lock().unwrap();
@@ -543,8 +561,8 @@ pub fn import_local_skill(state: State<'_, AppState>, path: String) -> AppResult
 }
 
 #[tauri::command]
-pub async fn check_updates(state: State<'_, AppState>) -> AppResult<usize> {
-    match check_updates_internal(&state, UpdateCheckTrigger::Manual).await? {
+pub async fn check_updates(app: AppHandle, state: State<'_, AppState>) -> AppResult<usize> {
+    match check_updates_internal(Some(&app), &state, UpdateCheckTrigger::Manual).await? {
         UpdateCheckOutcome::Completed(count) => Ok(count),
         UpdateCheckOutcome::Skipped => Ok(0),
     }

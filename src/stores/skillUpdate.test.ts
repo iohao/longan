@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   updateSkill: vi.fn(),
   updateSkills: vi.fn(),
   skillsChangedListener: null as (() => void) | null,
+  updateCheckingListener: null as ((checking: boolean) => void) | null,
   unlisten: vi.fn(),
 }));
 
@@ -21,6 +22,10 @@ vi.mock("@/api", () => ({
   },
   listenForSkillsChanged: vi.fn(async (listener: () => void) => {
     mocks.skillsChangedListener = listener;
+    return mocks.unlisten;
+  }),
+  listenForSkillUpdateChecking: vi.fn(async (listener: (checking: boolean) => void) => {
+    mocks.updateCheckingListener = listener;
     return mocks.unlisten;
   }),
   errorMessage: (error: unknown) => String(error),
@@ -132,5 +137,19 @@ describe("useSkillUpdateStore", () => {
     await flushPromises();
 
     expect(store.updatableCount).toBe(3);
+  });
+
+  it("listens for skill update checking events and updates isChecking", async () => {
+    const store = useSkillUpdateStore();
+    store.initEventListener();
+
+    await flushPromises();
+    expect(store.isChecking).toBe(false);
+
+    mocks.updateCheckingListener?.(true);
+    expect(store.isChecking).toBe(true);
+
+    mocks.updateCheckingListener?.(false);
+    expect(store.isChecking).toBe(false);
   });
 });

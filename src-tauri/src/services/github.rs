@@ -1,8 +1,12 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use serde::Deserialize;
 
 use crate::error::{AppError, AppResult};
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(12);
 
 #[derive(Clone, Debug)]
 pub struct Commit {
@@ -39,10 +43,11 @@ struct TreeEntry {
     kind: String,
 }
 
-/// Shared HTTP client with the UA GitHub requires.
+/// Shared HTTP client with the UA GitHub requires and connect timeout protection.
 pub fn client() -> AppResult<reqwest::Client> {
     reqwest::Client::builder()
         .user_agent("longan/0.1")
+        .connect_timeout(CONNECT_TIMEOUT)
         .build()
         .map_err(Into::into)
 }
@@ -52,6 +57,14 @@ fn auth(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBu
         Some(t) if !t.is_empty() => req.bearer_auth(t),
         _ => req,
     }
+}
+
+fn api_request(
+    client: &reqwest::Client,
+    url: &str,
+    token: Option<&str>,
+) -> reqwest::RequestBuilder {
+    auth(client.get(url), token).timeout(API_REQUEST_TIMEOUT)
 }
 
 /// Friendly 404 message: the registry may reference repos that were renamed or removed.
@@ -67,7 +80,7 @@ pub async fn latest_commit(
     token: Option<&str>,
 ) -> AppResult<Commit> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/commits/HEAD");
-    let resp = auth(client.get(&url), token).send().await?;
+    let resp = api_request(client, &url, token).send().await?;
     match resp.status().as_u16() {
         200 => {
             let commit: CommitResponse = resp.json().await?;
@@ -125,7 +138,7 @@ pub async fn path_tree_shas(
                 entries.clone()
             } else {
                 let url = format!("https://api.github.com/repos/{owner}/{repo}/git/trees/{tree_sha}");
-                let resp = auth(client.get(&url), token).send().await?;
+                let resp = api_request(client, &url, token).send().await?;
                 let entries = match resp.status().as_u16() {
                     200 => resp.json::<TreeResponse>().await?.tree,
                     403 | 429 => return Err(AppError::RateLimited),

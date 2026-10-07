@@ -2303,6 +2303,7 @@ dependencies = [
  "dirs 7.0.0",
  "dunce",
  "flate2",
+ "futures-util",
  "git2",
  "junction",
  "reqwest",

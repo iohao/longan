@@ -23,7 +23,7 @@ async fn run_automatic_update_check(
     trigger: commands::UpdateCheckTrigger,
 ) {
     let state = handle.state::<AppState>();
-    match commands::check_updates_internal(&state, trigger).await {
+    match commands::check_updates_internal(Some(handle), &state, trigger).await {
         Ok(commands::UpdateCheckOutcome::Completed(_)) => {
             let _ = handle.emit("skills-changed", ());
         }

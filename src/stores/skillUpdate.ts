@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { api, listenForSkillsChanged } from "@/api";
+import { api, listenForSkillsChanged, listenForSkillUpdateChecking } from "@/api";
 import { reportFrontendError } from "@/logging";
 import type { Skill } from "@/types";
 
@@ -85,6 +85,16 @@ export const useSkillUpdateStore = defineStore("skillUpdate", () => {
     }).catch((error) => {
       reportFrontendError(
         "Failed to listen for skills changed",
+        error,
+        "useSkillUpdateStore",
+      );
+    });
+
+    void listenForSkillUpdateChecking((checking) => {
+      isChecking.value = checking;
+    }).catch((error) => {
+      reportFrontendError(
+        "Failed to listen for skill update checking",
         error,
         "useSkillUpdateStore",
       );
