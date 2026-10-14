@@ -63,6 +63,23 @@ const localSkill: ListedSkill = {
   reference_count: 0,
 };
 
+const archifySkill: ListedSkill = {
+  id: 3598,
+  name: "archify",
+  source_type: "net",
+  owner: "tt-a1i",
+  repo: "archify",
+  dir_path: "net/tt-a1i/archify/archify",
+  description: "Generate diagrams",
+  latest_sha: "c21c",
+  status: "ok",
+  updated_at: "2026-10-13",
+  reference_count: 0,
+  source_path: "archify",
+  install_source: "github",
+};
+
+
 const mocks = vi.hoisted(() => ({
   listSkills: vi.fn(),
   updateSkill: vi.fn(),
@@ -276,4 +293,23 @@ describe("InstalledPage", () => {
     expect(refreshBtn.attributes("aria-busy")).toBe("true");
     expect(refreshBtn.attributes("disabled")).toBeDefined();
   });
+
+  it("renders GitHub action button for GitHub-installed skills in tree view", async () => {
+    mocks.listSkills.mockResolvedValue([archifySkill]);
+    const wrapper = mount(InstalledPage, {
+      global: { plugins: [i18n] },
+    });
+    await flushPromises();
+
+    // Verify tree view displays repo and skill
+    expect(wrapper.text()).toContain("tt-a1i/archify");
+    expect(wrapper.text()).toContain("archify");
+
+    // The skill card inside tree view should have the GitHub button
+    const skillCards = wrapper.findAll(".skill-list-row");
+    expect(skillCards.length).toBe(1);
+    const githubBtn = skillCards[0].find('button[aria-label="打开 GitHub 仓库"]');
+    expect(githubBtn.exists()).toBe(true);
+  });
 });
+

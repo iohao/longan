@@ -14,6 +14,7 @@ export interface Skill {
   updated_at: string;
   source_url?: string | null; // skills.sh registry ID
   github_source?: string | null; // GitHub source
+  install_source?: "skills_sh" | "github" | "local_import" | "local" | null;
   sub_skills?: SubSkillInfo[];
 }
 

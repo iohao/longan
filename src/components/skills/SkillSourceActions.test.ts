@@ -145,4 +145,29 @@ describe("SkillSourceActions", () => {
     expect(wrapper.find('[aria-label="Open Skills Source Page"]').exists()).toBe(false);
     expect(wrapper.find('[aria-label="Open GitHub Repository"]').exists()).toBe(true);
   });
+
+  it("retains GitHub repository action when hideRepoActions is true if the skill has no skills.sh page", () => {
+    const archifySkill = {
+      id: 3598,
+      source_type: "net" as const,
+      owner: "tt-a1i",
+      repo: "archify",
+      install_source: "github" as const,
+      source_path: "archify",
+    };
+
+    const wrapper = mount(SkillSourceActions, {
+      props: { skill: archifySkill, hideRepoActions: true },
+      slots: {
+        default: `<button type="button" aria-label="Delete action">Delete</button>`,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('[aria-label="Open Skills Source Page"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Open GitHub Repository"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Open Local Directory"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Delete action"]').exists()).toBe(true);
+  });
 });
+

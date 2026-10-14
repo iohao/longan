@@ -41,6 +41,9 @@ const isNet = computed(
 const hasSkillsShPage = computed(
   () => Boolean(sourceUrl.value && props.skill.install_source !== "github"),
 );
+const shouldShowGithub = computed(
+  () => isNet.value && (!props.hideRepoActions || !hasSkillsShPage.value),
+);
 
 async function run(action: () => Promise<void>) {
   try {
@@ -87,7 +90,7 @@ function openDirectory(event: MouseEvent) {
     </Button>
 
     <Button
-      v-if="!hideRepoActions && isNet"
+      v-if="shouldShowGithub"
       type="button"
       size="sm"
       variant="outline"
