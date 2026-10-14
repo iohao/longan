@@ -126,11 +126,41 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
+      - name: Disable Spotlight indexing on macOS
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off || true
+
       - name: Build desktop bundles
+        shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: bun run desktop -- build --ci --config src-tauri/tauri.release.conf.json ${{ matrix.tauri_args }}
+        run: |
+          build_args=(--ci --verbose --config src-tauri/tauri.release.conf.json)
+          if [ -n "${{ matrix.tauri_args }}" ]; then
+            read -r -a extra_args <<< "${{ matrix.tauri_args }}"
+            build_args+=("${extra_args[@]}")
+          fi
+
+          if [ "$RUNNER_OS" != "macOS" ]; then
+            bun run desktop -- build "${build_args[@]}"
+          else
+            max_attempts=3
+            attempt=1
+            until bun run desktop -- build "${build_args[@]}"; do
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "Tauri build failed after $max_attempts attempts." >&2
+                exit 1
+              fi
+              echo "Tauri build failed on attempt $attempt. Cleaning lingering DMG mounts and retrying..." >&2
+              hdiutil info 2>/dev/null | grep -o '/dev/disk[0-9]*' | while read -r d; do
+                hdiutil detach "$d" -force 2>/dev/null || true
+              done
+              rm -f src-tauri/target/*/release/bundle/dmg/rw.*.dmg 2>/dev/null || true
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+          fi
 
       - name: Upload release assets and updater fragment
         shell: bash

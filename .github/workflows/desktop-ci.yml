@@ -64,8 +64,33 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
+      - name: Disable Spotlight indexing on macOS
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off || true
+
       - name: Build desktop bundles
-        run: bun run desktop -- build --ci --no-sign
+        shell: bash
+        run: |
+          build_args=(--ci --verbose --no-sign)
+          if [ "$RUNNER_OS" != "macOS" ]; then
+            bun run desktop -- build "${build_args[@]}"
+          else
+            max_attempts=3
+            attempt=1
+            until bun run desktop -- build "${build_args[@]}"; do
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "Tauri build failed after $max_attempts attempts." >&2
+                exit 1
+              fi
+              echo "Tauri build failed on attempt $attempt. Cleaning lingering DMG mounts and retrying..." >&2
+              hdiutil info 2>/dev/null | grep -o '/dev/disk[0-9]*' | while read -r d; do
+                hdiutil detach "$d" -force 2>/dev/null || true
+              done
+              rm -f src-tauri/target/release/bundle/dmg/rw.*.dmg 2>/dev/null || true
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+          fi
 
       - name: Upload desktop bundles
         uses: actions/upload-artifact@v6
