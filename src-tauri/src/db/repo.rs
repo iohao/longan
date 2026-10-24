@@ -9,6 +9,8 @@ use crate::models::{
 };
 
 fn skill_from_row(row: &Row) -> rusqlite::Result<Skill> {
+    let description: Option<String> = row.get("description")?;
+    let trigger_mode = crate::services::scanner::detect_trigger_mode(None, None, description.as_deref());
     Ok(Skill {
         id: row.get("id")?,
         name: row.get("name")?,
@@ -16,7 +18,7 @@ fn skill_from_row(row: &Row) -> rusqlite::Result<Skill> {
         owner: row.get("owner")?,
         repo: row.get("repo")?,
         dir_path: row.get("dir_path")?,
-        description: row.get("description")?,
+        description,
         latest_sha: row.get("latest_sha")?,
         source_path: row.get("source_path")?,
         tree_sha: row.get("tree_sha")?,
@@ -26,6 +28,7 @@ fn skill_from_row(row: &Row) -> rusqlite::Result<Skill> {
         github_source: row.get("github_source").unwrap_or_default(),
         install_source: row.get("install_source").ok(),
         sub_skills: vec![],
+        trigger_mode: Some(trigger_mode.to_string()),
     })
 }
 

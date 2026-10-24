@@ -5,6 +5,8 @@ pub struct SubSkillInfo {
     pub name: String,
     pub description: Option<String>,
     pub dir_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger_mode: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -35,6 +37,8 @@ pub struct Skill {
     pub github_source: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sub_skills: Vec<SubSkillInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger_mode: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

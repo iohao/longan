@@ -13,6 +13,7 @@ import {
 import { api, errorMessage } from "@/api";
 import type { ListedSkill, Skill, SkillUpdateTask } from "@/types";
 import Badge from "@/components/ui/Badge.vue";
+import TriggerBadge from "@/components/ui/TriggerBadge.vue";
 import SkillActions from "./SkillActions.vue";
 
 export interface SkillCardProps {
@@ -102,6 +103,8 @@ function formatBytes(bytes: number): string {
             <span>{{ t(`library.source.${skill.source_type}`) }}</span>
           </Badge>
         </span>
+
+        <TriggerBadge :skill="skill" />
 
         <span v-if="isCollection" class="shrink-0">
           <Badge
@@ -199,6 +202,7 @@ function formatBytes(bytes: number): string {
               >
                 {{ sub.name }}
               </span>
+              <TriggerBadge :skill="sub" />
               <span class="text-[10px] text-slate-500 font-mono">
                 {{ sub.dir_path }}
               </span>

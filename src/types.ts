@@ -1,4 +1,6 @@
 // TS mirrors of the Rust models (serde field names).
+export type SkillTriggerMode = "command" | "intent" | "hybrid";
+
 export interface Skill {
   id: number;
   name: string;
@@ -16,12 +18,14 @@ export interface Skill {
   github_source?: string | null; // GitHub source
   install_source?: "skills_sh" | "github" | "local_import" | "local" | null;
   sub_skills?: SubSkillInfo[];
+  trigger_mode?: SkillTriggerMode | null;
 }
 
 export interface SubSkillInfo {
   name: string;
   description: string | null;
   dir_path: string;
+  trigger_mode?: SkillTriggerMode | null;
 }
 
 export interface ListedSkill extends Skill {

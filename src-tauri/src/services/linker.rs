@@ -438,6 +438,7 @@ mod tests {
             source_url: None,
             github_source: None,
             sub_skills: vec![],
+            trigger_mode: None,
         }
     }
 

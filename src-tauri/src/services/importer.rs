@@ -499,6 +499,7 @@ mod tests {
                 source_url: None,
                 github_source: None,
                 sub_skills: vec![],
+                trigger_mode: None,
             }],
             presets: vec![ExportPreset {
                 name: "local".into(),
@@ -667,6 +668,7 @@ mod tests {
             source_url: None,
             github_source: None,
             sub_skills: vec![],
+            trigger_mode: None,
         }
     }
 }

@@ -41,6 +41,7 @@ import Card from "@/components/ui/Card.vue";
 import Badge from "@/components/ui/Badge.vue";
 import Input from "@/components/ui/Input.vue";
 import SkillSourceActions from "@/components/skills/SkillSourceActions.vue";
+import TriggerBadge from "@/components/ui/TriggerBadge.vue";
 import { useProjectStore } from "@/stores/project";
 
 export interface ProjectDetailPageProps {
@@ -527,9 +528,12 @@ const projectTabs = computed<TabItem[]>(() => [
                       {{ skill.description }}
                     </span>
                   </span>
-                  <Badge variant="neutral" class="shrink-0 text-[10px]">
-                    {{ t(`library.source.${skill.source_type}`) }}
-                  </Badge>
+                  <div class="flex shrink-0 items-center gap-1.5">
+                    <TriggerBadge :skill="skill" />
+                    <Badge variant="neutral" class="shrink-0 text-[10px] px-1.5 py-0">
+                      {{ t(`library.source.${skill.source_type}`) }}
+                    </Badge>
+                  </div>
                 </button>
               </div>
             </Card>
@@ -594,9 +598,12 @@ const projectTabs = computed<TabItem[]>(() => [
                       {{ skill.description }}
                     </span>
                   </span>
-                  <Badge variant="neutral" class="shrink-0 text-[10px]">
-                    {{ t(`library.source.${skill.source_type}`) }}
-                  </Badge>
+                  <div class="flex shrink-0 items-center gap-1.5">
+                    <TriggerBadge :skill="skill" />
+                    <Badge variant="neutral" class="shrink-0 text-[10px] px-1.5 py-0">
+                      {{ t(`library.source.${skill.source_type}`) }}
+                    </Badge>
+                  </div>
                 </button>
               </div>
             </Card>
@@ -774,10 +781,11 @@ const projectTabs = computed<TabItem[]>(() => [
               class="group relative flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 transition-all duration-200 hover:border-amber-500/40 hover:bg-amber-500/10"
             >
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1.5 min-w-0">
                   <span class="text-sm font-semibold text-amber-200 truncate">
                     {{ e.name }}
                   </span>
+                  <TriggerBadge :skill="skillsById.get(e.skill_id)" />
                 </div>
                 <span class="text-xs text-slate-400 font-mono block truncate mt-0.5" :title="e.dir_path">
                   {{ e.dir_path }}
@@ -850,12 +858,15 @@ const projectTabs = computed<TabItem[]>(() => [
                     class="group flex min-w-0 items-center justify-between gap-3 rounded-lg border border-sky-500/20 bg-sky-500/[0.06] p-3 transition-colors hover:border-sky-500/35 hover:bg-sky-500/[0.09]"
                   >
                     <div class="min-w-0 flex-1">
-                      <span
-                        class="block truncate text-sm font-medium text-slate-200"
-                        :title="e.name"
-                      >
-                        {{ e.name }}
-                      </span>
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <span
+                          class="truncate text-sm font-medium text-slate-200"
+                          :title="e.name"
+                        >
+                          {{ e.name }}
+                        </span>
+                        <TriggerBadge :skill="skillsById.get(e.skill_id)" />
+                      </div>
                       <span
                         class="mt-0.5 block truncate font-mono text-xs text-slate-400"
                         :title="e.dir_path"

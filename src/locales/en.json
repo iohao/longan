@@ -169,6 +169,12 @@
     "updateAll": "Update all",
     "status": { "ok": "OK", "update_available": "Update available", "missing": "Source missing" },
     "source": { "net": "Net", "local": "Local" },
+    "trigger": {
+      "prefix": "Trigger",
+      "command": "Active",
+      "intent": "Passive",
+      "hybrid": "Hybrid"
+    },
     "sourceUrl": "skills.sh ↗",
     "filter": {
       "all": "All",

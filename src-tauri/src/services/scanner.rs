@@ -11,23 +11,43 @@ use crate::services::linker;
 use crate::services::platform_link;
 use crate::validate;
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct SkillFrontmatter {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub disable_model_invocation: Option<bool>,
+    pub user_invocable: Option<bool>,
+}
+
+pub fn parse_skill_md_path(skill_dir: &Path) -> SkillFrontmatter {
+    let content = match std::fs::read_to_string(skill_dir.join("SKILL.md")) {
+        Ok(c) => c,
+        Err(_) => return SkillFrontmatter::default(),
+    };
+    parse_skill_md_full(&content)
+}
+
 /// Minimal SKILL.md YAML frontmatter parse: extract `name` and `description`.
 /// Supports single-line values and multiline YAML block scalars (>- / |).
 pub fn parse_skill_md(skill_dir: &Path) -> (Option<String>, Option<String>) {
-    let content = match std::fs::read_to_string(skill_dir.join("SKILL.md")) {
-        Ok(c) => c,
-        Err(_) => return (None, None),
-    };
-    parse_skill_md_content(&content)
+    let fm = parse_skill_md_path(skill_dir);
+    (fm.name, fm.description)
 }
 
 pub fn parse_skill_md_content(content: &str) -> (Option<String>, Option<String>) {
+    let fm = parse_skill_md_full(content);
+    (fm.name, fm.description)
+}
+
+pub fn parse_skill_md_full(content: &str) -> SkillFrontmatter {
     let mut lines = content.lines();
     if lines.next().map(str::trim) != Some("---") {
-        return (None, None);
+        return SkillFrontmatter::default();
     }
     let mut name = None;
     let mut description = None;
+    let mut disable_model_invocation = None;
+    let mut user_invocable = None;
     let mut multiline_key: Option<String> = None;
     let mut multiline_val = String::new();
 
@@ -66,6 +86,16 @@ pub fn parse_skill_md_content(content: &str) -> (Option<String>, Option<String>)
             } else {
                 description = Some(val);
             }
+        } else if let Some(v) = trimmed
+            .strip_prefix("disable-model-invocation:")
+            .or_else(|| trimmed.strip_prefix("disable_model_invocation:"))
+        {
+            disable_model_invocation = parse_yaml_bool(v);
+        } else if let Some(v) = trimmed
+            .strip_prefix("user-invocable:")
+            .or_else(|| trimmed.strip_prefix("user_invocable:"))
+        {
+            user_invocable = parse_yaml_bool(v);
         }
     }
 
@@ -75,7 +105,61 @@ pub fn parse_skill_md_content(content: &str) -> (Option<String>, Option<String>)
         }
     }
 
-    (name.filter(|s| !s.is_empty()), description.filter(|s| !s.is_empty()))
+    SkillFrontmatter {
+        name: name.filter(|s| !s.is_empty()),
+        description: description.filter(|s| !s.is_empty()),
+        disable_model_invocation,
+        user_invocable,
+    }
+}
+
+fn parse_yaml_bool(v: &str) -> Option<bool> {
+    let s = strip_quotes(v).to_lowercase();
+    match s.as_str() {
+        "true" | "yes" | "1" => Some(true),
+        "false" | "no" | "0" => Some(false),
+        _ => None,
+    }
+}
+
+pub fn detect_trigger_mode(
+    disable_model_inv: Option<bool>,
+    user_inv: Option<bool>,
+    description: Option<&str>,
+) -> &'static str {
+    if disable_model_inv == Some(true) {
+        return "command";
+    }
+    if user_inv == Some(false) {
+        return "intent";
+    }
+
+    if let Some(desc) = description {
+        let lower = desc.to_lowercase();
+        if lower.contains("manual-only")
+            || lower.contains("never trigger implicitly")
+            || lower.contains("only when the user explicitly invokes")
+            || lower.contains("when user types /")
+            || lower.contains("when the user types /")
+            || lower.contains("用户主动调用")
+            || lower.contains("手动调用")
+            || lower.contains("需用户主动")
+        {
+            return "command";
+        }
+
+        if lower.contains("must be used for")
+            || lower.contains("always apply")
+            || lower.contains("passive")
+            || lower.contains("静默生效")
+            || lower.contains("自动触发")
+            || lower.contains("被动触发")
+        {
+            return "intent";
+        }
+    }
+
+    "hybrid"
 }
 
 fn strip_quotes(v: &str) -> String {
@@ -108,14 +192,22 @@ pub fn find_sub_skill_infos(dir: &Path, base_dir_path: &str) -> Vec<SubSkillInfo
         let path = entry.path();
         let dir_name = entry.file_name().to_string_lossy().to_string();
         if !dir_name.starts_with('.') && path.is_dir() && path.join("SKILL.md").is_file() {
-            let (fm_name, fm_desc) = parse_skill_md(&path);
-            let name = fm_name
-                .and_then(|n| validate::sanitize_link_name(&n))
+            let fm = parse_skill_md_path(&path);
+            let name = fm
+                .name
+                .as_deref()
+                .and_then(validate::sanitize_link_name)
                 .unwrap_or_else(|| dir_name.clone());
+            let trigger_mode = detect_trigger_mode(
+                fm.disable_model_invocation,
+                fm.user_invocable,
+                fm.description.as_deref(),
+            );
             sub_skills.push(SubSkillInfo {
                 name,
-                description: fm_desc,
+                description: fm.description,
                 dir_path: format!("{base_dir_path}/{dir_name}"),
+                trigger_mode: Some(trigger_mode.to_string()),
             });
         }
     }
@@ -127,9 +219,18 @@ pub fn populate_sub_skills(paths: &Paths, skill: &mut Skill) {
     let skill_dir = paths.skills_dir().join(&skill.dir_path);
     if skill_dir.join("SKILL.md").is_file() {
         skill.sub_skills = vec![];
+        let fm = parse_skill_md_path(&skill_dir);
+        let trigger_mode = detect_trigger_mode(
+            fm.disable_model_invocation,
+            fm.user_invocable,
+            fm.description.as_deref().or(skill.description.as_deref()),
+        );
+        skill.trigger_mode = Some(trigger_mode.to_string());
         return;
     }
     skill.sub_skills = find_sub_skill_infos(&skill_dir, &skill.dir_path);
+    let trigger_mode = detect_trigger_mode(None, None, skill.description.as_deref());
+    skill.trigger_mode = Some(trigger_mode.to_string());
 }
 
 fn parse_readme_desc(dir: &Path) -> Option<String> {
@@ -555,6 +656,7 @@ mod tests {
             source_url: None,
             github_source: None,
             sub_skills: vec![],
+            trigger_mode: None,
         };
 
         populate_sub_skills(&paths, &mut skill);
@@ -562,7 +664,10 @@ mod tests {
         assert_eq!(skill.sub_skills[0].name, "dc-class");
         assert_eq!(skill.sub_skills[0].description.as_deref(), Some("Class sync"));
         assert_eq!(skill.sub_skills[0].dir_path, "local/dc-skill/dc-class");
+        assert_eq!(skill.sub_skills[0].trigger_mode.as_deref(), Some("hybrid"));
         assert_eq!(skill.sub_skills[1].name, "dc-module-design");
+        assert_eq!(skill.sub_skills[1].trigger_mode.as_deref(), Some("hybrid"));
+        assert_eq!(skill.trigger_mode.as_deref(), Some("hybrid"));
     }
 
     #[test]
@@ -589,9 +694,54 @@ mod tests {
             source_url: None,
             github_source: None,
             sub_skills: vec![],
+            trigger_mode: None,
         };
 
         populate_sub_skills(&paths, &mut skill);
         assert!(skill.sub_skills.is_empty());
+        assert_eq!(skill.trigger_mode.as_deref(), Some("hybrid"));
+    }
+
+    #[test]
+    fn test_detect_trigger_mode_and_frontmatter() {
+        let fm_yaml = r#"---
+name: release
+description: Manual release workflow
+disable-model-invocation: true
+---
+"#;
+        let fm = parse_skill_md_full(fm_yaml);
+        assert_eq!(fm.disable_model_invocation, Some(true));
+        assert_eq!(
+            detect_trigger_mode(fm.disable_model_invocation, fm.user_invocable, fm.description.as_deref()),
+            "command"
+        );
+
+        let fm_yaml_intent = r#"---
+name: rules
+description: Code quality rules
+user-invocable: false
+---
+"#;
+        let fm_intent = parse_skill_md_full(fm_yaml_intent);
+        assert_eq!(fm_intent.user_invocable, Some(false));
+        assert_eq!(
+            detect_trigger_mode(fm_intent.disable_model_invocation, fm_intent.user_invocable, fm_intent.description.as_deref()),
+            "intent"
+        );
+
+        // Keyword based detection
+        assert_eq!(
+            detect_trigger_mode(None, None, Some("Manual-only workflow. Never trigger implicitly.")),
+            "command"
+        );
+        assert_eq!(
+            detect_trigger_mode(None, None, Some("MUST be used for Vue.js tasks.")),
+            "intent"
+        );
+        assert_eq!(
+            detect_trigger_mode(None, None, Some("General purpose git helper")),
+            "hybrid"
+        );
     }
 }

@@ -169,6 +169,12 @@
     "updateAll": "全部更新",
     "status": { "ok": "正常", "update_available": "可更新", "missing": "源缺失" },
     "source": { "net": "网络", "local": "本地" },
+    "trigger": {
+      "prefix": "触发",
+      "command": "主动",
+      "intent": "被动",
+      "hybrid": "混合"
+    },
     "sourceUrl": "skills.sh ↗",
     "filter": {
       "all": "全部",
