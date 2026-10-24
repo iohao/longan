@@ -1,0 +1,18 @@
+{
+  "version": "2.0.3",
+  "notes": "# Longan v2.0.3\n\nmacOS may block Longan the first time you open it. After moving `longan.app` to `/Applications`, verify that it came from this official release, open Terminal, and run the following command once:\n\n```bash\nsudo xattr -dr com.apple.quarantine \"/Applications/longan.app\"\n```\n\nOpen Longan again after the command completes.\n\nLongan 2.0.3 introduces skill trigger mode detection and UI badges across the app to clarify whether a skill is activated by explicit user commands, model intent, or both, alongside stability improvements for macOS release packaging.\n\n## What's changed\n\n1. Skill trigger mode detection and UI badges\n   - Added automatic detection of skill trigger modes (`command`, `intent`, or `hybrid`) based on `SKILL.md` frontmatter flags (`user-invocable`, `disable-model-invocation`) and description keywords.\n   - Introduced a new `TriggerBadge` component and visual indicators on skill cards and project detail views to clearly show how skills are activated.\n   - Extended backend models, SQLite repository mappings, and frontend TypeScript definitions to support the `trigger_mode` field with bilingual localized labels.\n\n2. macOS release packaging stability\n   - Added Spotlight indexing suppression and automatic retry logic for DMG creation on macOS release runners to prevent build flakiness.\n\n## 中文说明\n\nLongan 2.0.3 新增了技能触发模式识别与徽标展示功能，帮助用户直观识别技能是由用户命令主动触发、模型意图被动触发还是混合触发，并提升了 macOS 发布打包流程的稳定性。\n\n1. 技能触发模式识别与徽标展示\n   - 支持解析 `SKILL.md` 的 Frontmatter 标记（`user-invocable`、`disable-model-invocation`）以及描述中的中英文关键词，自动识别技能的触发模式（主动调用、意图触发或混合模式）。\n   - 新增 `TriggerBadge` 徽标组件，在技能卡片和项目详情等页面直观展示触发类型及中英文提示。\n   - 在后端数据模型、SQLite 存储映射及前端 TypeScript 类型中完整支持 `trigger_mode` 属性。\n\n2. macOS 发布流程打包稳定性增强\n   - 在 macOS 发布构建工作流中禁用 Spotlight 索引，并为 DMG 打包增加自动重试机制，防止偶发打包失败。\n\n**Full Changelog**: https://github.com/iohao/longan/compare/v2.0.2...v2.0.3",
+  "platforms": {
+    "darwin-aarch64": {
+      "url": "https://github.com/iohao/longan/releases/download/v2.0.3/longan-v2.0.3-macos-arm64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdXpDRUduc2lvTFZWeE84cldNdFp3NnpzbHdsdzdsTU5tekdsVXQyM1V2ODBuY1VURGlDdkxrSCswSjFiZ2lrdDY1L1hjSzVVVmxib0lxZFcxT3FKb0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyODIyMDUxCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oJdmVyc2lvbjoyLjAuMwpBeFhqQ25KeWFiL1prc2x4VjB4TXJjZmplUmFmZG9wblpNckFia0V4aXE0d1lORUVBc2pQemJxY0JpOEFrajlmU2ZuRXhuaFlxZGs1cy9vLzc1aFBBQT09Cg=="
+    },
+    "darwin-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v2.0.3/longan-v2.0.3-macos-x64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdXh1NFBsWHJZeTJDdW54ZWZoaG1heEorVjFTQkN6NDNwbENvY1ArRFhBWVUrWVp4c3JESFJ4ZmJZblBZWVN6Q2dpaGdkdnRwRGh1bzNvOHloazNnQ2dRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyODIyMzQxCWZpbGU6bG9uZ2FuLmFwcC50YXIuZ3oJdmVyc2lvbjoyLjAuMwpsVHE1c2dCUDlBcThlVFBrOXB6UU1OaXduK1p3Z21RZ29oRHR3YzN6ZVpCS0xYUUM5N0RwcEM3VVlCNjduSFpMQUJJMFkyRTJNTmYyMng2cTI0YXZBZz09Cg=="
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/iohao/longan/releases/download/v2.0.3/longan-v2.0.3-windows-x64.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTc0tXY2QrWjZSdXpOQUJ4RUNqd0UxNlp2RDdEQXNwc0dwOUFYa2cvZGtZMGhpTnV4NjUwSmNGR044VWdUUEppbVhaYTVIM3JzRmMzY1cydEdZbkJtTk5KS2ZCV3ZtMGdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyODIyMzE4CWZpbGU6bG9uZ2FuXzIuMC4zX3g2NC1zZXR1cC5leGUJdmVyc2lvbjoyLjAuMwpMN21JQkJFOEdzUjFucG9UM3RyUXRKOVlPc0FUYXhBRzlxek5xUEJnK3ZjK0M5aGhnc2ovRElKSnhaemw0OWpPUDVndGxPaFZlT0ZqSVBHbzcvMmVBQT09Cg=="
+    }
+  }
+}
