@@ -64,12 +64,15 @@ export interface ProjectGroup {
   sort_order: number;
 }
 
+export type SkillInstallMode = "symlink" | "copy";
+
 export interface Project {
   id: number;
   name: string;
   path: string;
   created_at: string;
   path_exists: boolean;
+  skill_install_mode: SkillInstallMode;
   group_id: number;
   hidden: boolean;
   preset_ids: number[];
@@ -128,8 +131,14 @@ export interface EffectiveSkill {
   conflicted: boolean;
 }
 
+export interface ProjectGuidanceResult {
+  updated: string[];
+  warnings: string[];
+}
+
 export interface SyncReport {
   created: string[];
+  updated: string[];
   removed: string[];
   conflicts: string[];
   project_path_missing: boolean;

@@ -50,7 +50,7 @@ pub fn with_tx<T>(
     Ok(out)
 }
 
-/// Initialize database with final schema (no migrations for dev-only project).
+/// Initialize the schema and apply additive upgrades without resetting user data.
 pub fn init_db(conn: &Connection) -> AppResult<()> {
     conn.execute_batch(
         r#"
@@ -141,6 +141,19 @@ pub fn init_db(conn: &Connection) -> AppResult<()> {
             UNIQUE (project_id, skill_id)
         );
 
+        CREATE TABLE IF NOT EXISTS managed_skill_copies (
+            project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            relative_path TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            PRIMARY KEY (project_id, relative_path)
+        );
+
+        CREATE TABLE IF NOT EXISTS project_sync_reports (
+            project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+            report TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS agents (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
             name           TEXT NOT NULL UNIQUE,
@@ -169,6 +182,19 @@ pub fn init_db(conn: &Connection) -> AppResult<()> {
         "#,
     )?;
 
+    let has_mode = conn
+        .prepare("PRAGMA table_info(projects)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?
+        .iter()
+        .any(|name| name == "skill_install_mode");
+    if !has_mode {
+        conn.execute_batch(
+            "ALTER TABLE projects ADD COLUMN skill_install_mode TEXT NOT NULL DEFAULT 'symlink'
+             CHECK (skill_install_mode IN ('symlink', 'copy'));",
+        )?;
+    }
+
     Ok(())
 }
 
@@ -176,6 +202,27 @@ pub fn init_db(conn: &Connection) -> AppResult<()> {
 mod tests {
     use super::*;
     use crate::error::AppError;
+
+    #[test]
+    fn upgrades_existing_projects_without_losing_relations_and_is_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE projects (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL UNIQUE,
+            group_id INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        ); INSERT INTO projects (id, name, path, sort_order) VALUES (42, 'Existing', '/existing', 0);").unwrap();
+        init_db(&conn).unwrap();
+        let preset = repo::create_preset(&conn, "Existing preset", None).unwrap();
+        repo::set_project_preset(&conn, 42, preset, true).unwrap();
+        init_db(&conn).unwrap();
+        let project = repo::get_project(&conn, 42).unwrap();
+        assert_eq!(
+            project.skill_install_mode,
+            crate::models::SkillInstallMode::Symlink
+        );
+        assert_eq!(project.preset_ids, [preset]);
+        assert_eq!(project.name, "Existing");
+    }
 
     #[test]
     fn with_tx_commits_on_ok_and_rolls_back_on_err() {

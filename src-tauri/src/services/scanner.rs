@@ -342,6 +342,10 @@ pub fn rescan(conn: &Connection, paths: &Paths) -> AppResult<()> {
 
     let local_dir = paths.local_dir();
     let mut scanned_dir_paths = HashSet::new();
+    let previously_missing: Vec<_> = repo::list_skills(conn)?
+        .into_iter()
+        .filter(|skill| skill.source_type == "local" && skill.status == "missing")
+        .collect();
 
     if let Ok(entries) = std::fs::read_dir(&local_dir) {
         for entry in entries.flatten() {
@@ -415,13 +419,33 @@ pub fn rescan(conn: &Connection, paths: &Paths) -> AppResult<()> {
     // commit atomically; link syncs run after commit so a sync failure can't
     // leave the DB half-updated.
     let mut affected_projects: Vec<i64> = vec![];
+    for skill in previously_missing {
+        if scanned_dir_paths.contains(&skill.dir_path) {
+            affected_projects.extend(repo::projects_using_skill(conn, skill.id)?);
+        }
+    }
     crate::db::with_tx(conn, |conn| {
         for skill in repo::list_skills(conn)? {
             if skill.source_type == "local" {
                 let exists = scanned_dir_paths.contains(&skill.dir_path);
                 if !exists {
-                    affected_projects.extend(repo::projects_using_skill(conn, skill.id)?);
-                    repo::delete_skill(conn, skill.id)?;
+                    let projects = repo::projects_using_skill(conn, skill.id)?;
+                    let mut has_copy_project = false;
+                    for id in &projects {
+                        if repo::get_project(conn, *id)?.skill_install_mode
+                            == crate::models::SkillInstallMode::Copy
+                        {
+                            has_copy_project = true;
+                            break;
+                        }
+                    }
+                    affected_projects.extend(projects);
+                    if has_copy_project {
+                        // Keep associations so a temporarily missing source cannot delete its last copy.
+                        repo::set_skill_status(conn, skill.id, "missing")?;
+                    } else {
+                        repo::delete_skill(conn, skill.id)?;
+                    }
                 } else if skill.status == "missing" {
                     repo::set_skill_status(conn, skill.id, "ok")?;
                 }

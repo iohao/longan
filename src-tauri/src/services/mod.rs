@@ -4,6 +4,8 @@ pub mod importer;
 pub mod installer;
 pub mod linker;
 pub mod platform_link;
+pub mod project_files;
+pub mod project_guidance;
 pub mod registry;
 pub mod scanner;
 pub mod updater;

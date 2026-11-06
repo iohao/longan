@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import i18n, { setLanguage } from "@/i18n";
-import type { Project, ProjectGroup } from "@/types";
+import type { Project, ProjectGroup, SyncReport } from "@/types";
 import ProjectsPage from "./ProjectsPage.vue";
 
 const mocks = vi.hoisted(() => ({
   createProjectGroup: vi.fn(async () => 10),
-  deleteProject: vi.fn(async () => undefined),
+  deleteProject: vi.fn<(projectId: number) => Promise<SyncReport>>(async () => ({
+    created: [], updated: [], removed: [], conflicts: [], project_path_missing: false,
+  })),
   deleteProjectGroup: vi.fn(async () => 0),
   getSetting: vi.fn(async () => null),
   setSetting: vi.fn(async () => undefined),
@@ -52,6 +54,7 @@ function createProject(id: number, name: string, groupId: number, hidden = false
     preset_ids: [],
     skill_ids: [],
     agent_ids: [],
+    skill_install_mode: "symlink",
   };
 }
 
@@ -102,6 +105,25 @@ describe("ProjectsPage", () => {
     expect(wrapper.text()).toContain("Frontend two");
     expect(wrapper.text()).toContain("Frontend hidden");
     expect(wrapper.text()).toContain("已从侧栏隐藏");
+  });
+
+  it("shows preserved copy paths after removing a project", async () => {
+    mocks.deleteProject.mockResolvedValueOnce({
+      created: [], updated: [], removed: [], project_path_missing: false,
+      conflicts: [".agents/skills/demo: project copy was modified"],
+    });
+    const { wrapper } = mountPage();
+    await wrapper.findAll('button[aria-label="删除"]')[0].trigger("click");
+    await flushPromises();
+    const confirm = Array.from(document.body.querySelectorAll("button")).reverse().find(
+      (button) => button.textContent?.includes("删除") && !button.disabled,
+    );
+    expect(confirm).toBeDefined();
+    confirm!.click();
+    await flushPromises();
+    expect(mocks.deleteProject).toHaveBeenCalledWith(1);
+    expect(wrapper.get('[role="status"]').text()).toContain(".agents/skills/demo");
+    wrapper.unmount();
   });
 
   it("switches between project overview and group management tabs", async () => {

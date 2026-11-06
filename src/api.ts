@@ -18,9 +18,11 @@ import type {
   ProfileImportPreview,
   Project,
   ProjectGroup,
+  ProjectGuidanceResult,
   ReferenceDetail,
   RegistrySkill,
   Skill,
+  SkillInstallMode,
   SkillInstallProgressEvent,
   SkillUpdateProgressEvent,
   StorageInfo,
@@ -118,7 +120,7 @@ export const api = {
   listProjects: () => invoke<Project[]>("list_projects"),
   getProject: (projectId: number) => invoke<Project>("get_project", { projectId }),
   addProject: (path: string) => invoke<number>("add_project", { path }),
-  deleteProject: (projectId: number) => invoke<void>("delete_project", { projectId }),
+  deleteProject: (projectId: number) => invoke<SyncReport>("delete_project", { projectId }),
   setProjectGroup: (projectId: number, groupId: number) =>
     invoke<void>("set_project_group", { projectId, groupId }),
   setProjectsGroup: (projectIds: number[], groupId: number) =>
@@ -134,6 +136,12 @@ export const api = {
   effectiveSkills: (projectId: number) =>
     invoke<EffectiveSkill[]>("effective_skills", { projectId }),
   syncProject: (projectId: number) => invoke<SyncReport>("sync_project", { projectId }),
+  setProjectSkillInstallMode: (projectId: number, mode: SkillInstallMode) =>
+    invoke<SyncReport>("set_project_skill_install_mode", { projectId, mode }),
+  getProjectSyncReport: (projectId: number) =>
+    invoke<SyncReport | null>("get_project_sync_report", { projectId }),
+  generateProjectSkillGuidance: (projectId: number) =>
+    invoke<ProjectGuidanceResult>("generate_project_skill_guidance", { projectId }),
   gitignoreLinks: (projectId: number) => invoke<void>("gitignore_links", { projectId }),
 
   // agents

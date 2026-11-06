@@ -1,6 +1,6 @@
 import type { PageKey } from "../types";
 
-export type ProjectDetailTab = "operations" | "skills" | "agents";
+export type ProjectDetailTab = "operations" | "skills" | "agents" | "settings";
 
 interface StorageReader {
   getItem(key: string): string | null;
@@ -27,7 +27,7 @@ const PAGE_KEYS: PageKey[] = [
   "settings",
   "tools",
 ];
-const PROJECT_DETAIL_TABS: ProjectDetailTab[] = ["operations", "skills", "agents"];
+const PROJECT_DETAIL_TABS: ProjectDetailTab[] = ["operations", "skills", "agents", "settings"];
 const DEFAULT_NAVIGATION: NavigationState = { page: "market", selectedProjectId: null };
 const NAVIGATION_SHORTCUTS: Partial<Record<string, PageKey>> = {
   Digit1: "market",

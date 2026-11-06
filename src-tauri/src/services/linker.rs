@@ -5,9 +5,9 @@ use rusqlite::Connection;
 
 use crate::db::repo;
 use crate::error::AppResult;
-use crate::models::{BrokenLink, EffectiveSkill, Skill, SyncReport};
+use crate::models::{BrokenLink, EffectiveSkill, Skill, SkillInstallMode, SyncReport};
 use crate::paths::Paths;
-use crate::services::platform_link;
+use crate::services::{platform_link, project_files, project_guidance};
 use crate::validate;
 
 /// The always-on links dir (Agent Skills open standard). User-defined agents
@@ -120,90 +120,7 @@ fn insert_desired_target(
     }
 }
 
-/// Sync `<project>/.agents/skills/` to match the desired link set.
-/// `desired` maps link name -> absolute target dir. Only symlinks pointing
-/// under `skills_root` are managed; anything else is left untouched.
-pub fn sync_project_links(
-    project_path: &Path,
-    desired: &BTreeMap<String, PathBuf>,
-    skills_root: &Path,
-) -> AppResult<SyncReport> {
-    if !project_path.is_dir() {
-        let mut report = SyncReport::default();
-        report.project_path_missing = true;
-        return Ok(report);
-    }
-    sync_links_dir(
-        &project_path.join(DEFAULT_LINKS_DIR),
-        desired,
-        skills_root,
-        true,
-    )
-}
-
-/// Sync one links dir to match the desired link set. Only symlinks pointing
-/// under `skills_root` are managed; anything else is left untouched.
-/// `ensure_dir = false` is sweep mode: a missing dir returns an empty report
-/// without creating anything, and after removals the now-empty dir itself is
-/// removed (non-recursive, best-effort) so disabled agent dirs don't linger.
-pub fn sync_links_dir(
-    links_dir: &Path,
-    desired: &BTreeMap<String, PathBuf>,
-    skills_root: &Path,
-    ensure_dir: bool,
-) -> AppResult<SyncReport> {
-    let mut report = SyncReport::default();
-    if ensure_dir {
-        std::fs::create_dir_all(links_dir)?;
-    } else if !links_dir.is_dir() {
-        return Ok(report);
-    }
-    let skills_root = platform_link::normalize(skills_root);
-
-    // Pass 1: remove managed links that are no longer desired or point elsewhere.
-    for entry in std::fs::read_dir(links_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !platform_link::is_dir_link(&path) {
-            continue; // regular file/dir placed by the user: never touch
-        }
-        let Some(target) = platform_link::read_link_target(&path) else {
-            continue;
-        };
-        if !target.starts_with(&skills_root) {
-            continue; // link owned by someone else
-        }
-        let name = entry.file_name().to_string_lossy().to_string();
-        let keep = desired.get(&name).is_some_and(|want| *want == target);
-        if !keep {
-            platform_link::remove_link(&path)?;
-            report.removed.push(name);
-        }
-    }
-
-    // Pass 2: create missing links. Skip skills whose source dir vanished.
-    for (name, target) in desired {
-        let link = links_dir.join(name);
-        if std::fs::symlink_metadata(&link).is_ok() {
-            continue; // already correct (kept above) or user-owned; don't clobber
-        }
-        if !target.is_dir() {
-            report.conflicts.push(format!("{name}: source missing"));
-            continue;
-        }
-        platform_link::create_dir_link(target, &link)?;
-        report.created.push(name.clone());
-    }
-
-    if !ensure_dir {
-        // Sweep mode: collect the dir if nothing (user-owned or otherwise) is
-        // left in it. Non-recursive on purpose; parents like `.claude/` stay.
-        let _ = std::fs::remove_dir(links_dir);
-    }
-    Ok(report)
-}
-
-/// Full project sync: effective set from the DB -> symlink diff on disk,
+/// Full project sync: effective set from the DB -> managed files on disk,
 /// across the default links dir and every agent dir known to the DB.
 pub fn sync_project(conn: &Connection, paths: &Paths, project_id: i64) -> AppResult<SyncReport> {
     sync_project_with_sweeps(conn, paths, project_id, &[])
@@ -218,13 +135,75 @@ pub fn sync_project_with_sweeps(
     project_id: i64,
     extra_sweep_dirs: &[String],
 ) -> AppResult<SyncReport> {
-    let project = repo::get_project(conn, project_id)?;
+    sync_project_in_mode(conn, paths, project_id, extra_sweep_dirs, None)
+}
+
+pub fn set_project_mode(
+    conn: &Connection,
+    paths: &Paths,
+    project_id: i64,
+    mode: SkillInstallMode,
+) -> AppResult<SyncReport> {
+    sync_project_in_mode(conn, paths, project_id, &[], Some(mode))
+}
+
+fn sync_project_in_mode(
+    conn: &Connection,
+    paths: &Paths,
+    project_id: i64,
+    extra_sweep_dirs: &[String],
+    mode: Option<SkillInstallMode>,
+) -> AppResult<SyncReport> {
+    let mut project = repo::get_project(conn, project_id)?;
+    let changing_mode = mode.is_some_and(|mode| mode != project.skill_install_mode);
+    if let Some(mode) = mode {
+        project.skill_install_mode = mode;
+    }
+    let mut plan = project_plan(conn, paths, project_id)?;
+    for dir in extra_sweep_dirs {
+        plan.dirs.entry(dir.clone()).or_insert(false);
+    }
+    plan.changing_mode = changing_mode;
+    let mut report = project_files::sync(conn, paths, &project, plan)?;
+    // Mode changes already updated guidance inside their rollback boundary.
+    if !report.project_path_missing && !changing_mode {
+        match project_guidance::refresh(conn, paths, project_id) {
+            Ok(warnings) => report.conflicts.extend(
+                warnings
+                    .into_iter()
+                    .map(|warning| format!("AI guidance: {warning}")),
+            ),
+            Err(error) => report.conflicts.push(format!("AI guidance: {error}")),
+        }
+        repo::save_project_sync_report(conn, project_id, &report)?;
+    }
+    repo::log_op(
+        conn,
+        "sync_project",
+        &format!(
+            "project #{project_id}: +{} ~{} -{} !{}",
+            report.created.len(),
+            report.updated.len(),
+            report.removed.len(),
+            report.conflicts.len()
+        ),
+    );
+    Ok(report)
+}
+
+pub(super) fn project_plan(
+    conn: &Connection,
+    paths: &Paths,
+    project_id: i64,
+) -> AppResult<project_files::SyncPlan> {
     let rows = repo::desired_skills(conn, project_id)?;
     let effective = resolve_effective(&rows);
 
     let mut desired: BTreeMap<String, PathBuf> = BTreeMap::new();
     let mut origins: BTreeMap<String, String> = BTreeMap::new();
     let mut invalid: Vec<String> = vec![];
+    let mut warnings = Vec::new();
+    let mut unavailable = Vec::new();
     for e in effective.iter().filter(|e| !e.conflicted) {
         // Defense in depth: names and dir_paths are sanitized when stored, but
         // a tampered DB row must still never produce an escaping link.
@@ -233,6 +212,7 @@ pub fn sync_project_with_sweeps(
             (true, Ok(target)) => {
                 let expanded = expand_skill_targets(&e.name, &target)?;
                 if expanded.links.is_empty() {
+                    unavailable.push(target.clone());
                     invalid.push(format!(
                         "{}: source missing or contains no valid child skills",
                         e.name
@@ -246,7 +226,7 @@ pub fn sync_project_with_sweeps(
                         name,
                         child_target,
                         &e.via,
-                        &mut invalid,
+                        &mut warnings,
                     );
                 }
             }
@@ -254,66 +234,48 @@ pub fn sync_project_with_sweeps(
         }
     }
 
-    // Dir plan: the default dir is always active; agent dirs follow their
-    // enabled/linked state; extra sweep dirs default to inactive.
+    // The default directory is always active; agent directories follow their settings.
     let mut dirs = repo::agent_dir_plan(conn, project_id)?;
     dirs.insert(DEFAULT_LINKS_DIR.to_string(), true);
-    for dir in extra_sweep_dirs {
-        dirs.entry(dir.clone()).or_insert(false);
-    }
 
-    let project_path = Path::new(&project.path);
-    let mut report = SyncReport::default();
-    if !project_path.is_dir() {
-        report.project_path_missing = true;
-        return Ok(report);
-    }
-    let empty: BTreeMap<String, PathBuf> = BTreeMap::new();
-    let skills_root = paths.skills_dir();
-    for (dir, active) in &dirs {
-        // Same defense in depth as above: an agent dir straight from the DB
-        // must still be a safe relative path before it is joined.
-        if dir != DEFAULT_LINKS_DIR
-            && validate::normalize_agent_dir(dir).ok().as_deref() != Some(dir.as_str())
-        {
-            report.conflicts.push(format!("{dir}: invalid agent dir"));
-            continue;
-        }
-        let part = sync_links_dir(
-            &project_path.join(dir),
-            if *active { &desired } else { &empty },
-            &skills_root,
-            *active,
-        )?;
-        // Keep bare names for the default dir; prefix agent-dir entries so the
-        // report stays readable when several dirs change at once.
-        let prefix = |name: String| {
-            if dir == DEFAULT_LINKS_DIR {
-                name
-            } else {
-                format!("{dir}/{name}")
-            }
-        };
-        report.created.extend(part.created.into_iter().map(prefix));
-        report.removed.extend(part.removed.into_iter().map(prefix));
-        report.conflicts.extend(part.conflicts.into_iter().map(prefix));
-    }
-    report.conflicts.extend(invalid);
-    report
-        .conflicts
-        .extend(effective.iter().filter(|e| e.conflicted).map(|e| {
-            format!("{} (via {})", e.name, e.via)
-        }));
-    repo::log_op(
-        conn,
-        "sync_project",
-        &format!(
-            "project #{project_id}: +{} -{} !{}",
-            report.created.len(),
-            report.removed.len(),
-            report.conflicts.len()
-        ),
+    warnings.extend(
+        effective
+            .iter()
+            .filter(|e| e.conflicted)
+            .map(|e| format!("{} (via {})", e.name, e.via)),
     );
+    Ok(project_files::SyncPlan {
+        desired,
+        dirs,
+        unavailable,
+        conflicts: invalid,
+        warnings,
+        changing_mode: false,
+    })
+}
+
+/// Clean only our unmodified installations; edited copies become user-owned on removal.
+pub fn cleanup_project(conn: &Connection, paths: &Paths, project_id: i64) -> AppResult<SyncReport> {
+    let project = repo::get_project(conn, project_id)?;
+    let mut dirs: BTreeMap<String, bool> = repo::list_agents(conn)?
+        .into_iter()
+        .map(|agent| (agent.target_dir, false))
+        .collect();
+    dirs.insert(DEFAULT_LINKS_DIR.to_owned(), false);
+    let mut report = project_files::sync(
+        conn,
+        paths,
+        &project,
+        project_files::SyncPlan {
+            dirs,
+            ..project_files::SyncPlan::default()
+        },
+    )?;
+    if !report.project_path_missing {
+        if let Err(error) = project_guidance::cleanup(&project) {
+            report.conflicts.push(format!("AI guidance: {error}"));
+        }
+    }
     Ok(report)
 }
 
@@ -333,8 +295,21 @@ pub fn sync_projects_with_sweeps(
 ) -> AppResult<Vec<String>> {
     let mut errors = vec![];
     for id in project_ids {
-        if let Err(e) = sync_project_with_sweeps(conn, paths, *id, extra_sweep_dirs) {
-            errors.push(format!("project #{id}: {e}"));
+        match sync_project_with_sweeps(conn, paths, *id, extra_sweep_dirs) {
+            Ok(report) => errors.extend(
+                report
+                    .conflicts
+                    .iter()
+                    .map(|conflict| format!("project #{id}: {conflict}")),
+            ),
+            Err(e) => {
+                errors.push(format!("project #{id}: {e}"));
+                let report = SyncReport {
+                    conflicts: vec![e.to_string()],
+                    ..SyncReport::default()
+                };
+                let _ = repo::save_project_sync_report(conn, *id, &report);
+            }
         }
     }
     if !errors.is_empty() {
@@ -464,6 +439,28 @@ mod tests {
         let eff = resolve_effective(&rows);
         assert_eq!(eff.len(), 1);
         assert!(!eff[0].conflicted);
+    }
+
+    fn sync_project_links(
+        project: &Path,
+        desired: &BTreeMap<String, PathBuf>,
+        skills_root: &Path,
+    ) -> AppResult<SyncReport> {
+        let db = Db::open_in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        let id = repo::create_project(&conn, "test", project.to_str().unwrap())?;
+        let project = repo::get_project(&conn, id)?;
+        let paths = Paths::with_root(skills_root.parent().unwrap().to_path_buf());
+        project_files::sync(
+            &conn,
+            &paths,
+            &project,
+            project_files::SyncPlan {
+                desired: desired.clone(),
+                dirs: BTreeMap::from([(DEFAULT_LINKS_DIR.to_owned(), true)]),
+                ..project_files::SyncPlan::default()
+            },
+        )
     }
 
     fn setup_dirs() -> (tempfile::TempDir, Paths, PathBuf) {
@@ -640,8 +637,7 @@ mod tests {
         let mut desired = BTreeMap::new();
         desired.insert("tool".to_string(), new.clone());
         let report = sync_project_links(&project, &desired, &paths.skills_dir()).unwrap();
-        assert_eq!(report.removed, vec!["tool".to_string()]);
-        assert_eq!(report.created, vec!["tool".to_string()]);
+        assert_eq!(report.updated, vec!["tool".to_string()]);
         assert_eq!(
             platform_link::read_link_target(&links_dir.join("tool")).unwrap(),
             platform_link::normalize(new)

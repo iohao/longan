@@ -33,10 +33,10 @@ describe("navigation session state", () => {
 
   it("stores project detail tabs independently", () => {
     saveProjectDetailTab(7, "skills");
-    saveProjectDetailTab(8, "agents");
+    saveProjectDetailTab(8, "settings");
 
     expect(loadProjectDetailTab(7)).toBe("skills");
-    expect(loadProjectDetailTab(8)).toBe("agents");
+    expect(loadProjectDetailTab(8)).toBe("settings");
     expect(loadProjectDetailTab(9)).toBe("operations");
   });
 });

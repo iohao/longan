@@ -66,6 +66,7 @@ type ProjectsView = "overview" | "groups";
 
 const activeView = ref<ProjectsView>("overview");
 const error = ref<string | null>(null);
+const cleanupWarning = ref<string | null>(null);
 const pendingAction = ref<string | null>(null);
 const assignmentTarget = ref<Project | null>(null);
 const assignmentGroupId = ref(0);
@@ -162,9 +163,13 @@ async function assignProject() {
 async function deleteProject() {
   if (!deleteProjectTarget.value) return;
   const targetId = deleteProjectTarget.value.id;
-  const success = await runAction("delete-project", () =>
-    api.deleteProject(targetId),
-  );
+  cleanupWarning.value = null;
+  const success = await runAction("delete-project", async () => {
+    const result = await api.deleteProject(targetId);
+    if (result?.conflicts.length) {
+      cleanupWarning.value = `${t("projects.cleanupWarnings")}\n${result.conflicts.join("\n")}`;
+    }
+  });
   if (success) deleteProjectTarget.value = null;
 }
 
@@ -307,6 +312,13 @@ const dangerActionButtonClass =
 
     <!-- Overview View -->
     <div v-else class="space-y-5">
+      <div
+        v-if="cleanupWarning"
+        role="status"
+        class="whitespace-pre-wrap break-words rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200"
+      >
+        {{ cleanupWarning }}
+      </div>
       <div
         v-if="error"
         role="alert"

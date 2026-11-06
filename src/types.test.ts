@@ -14,6 +14,7 @@ function project(overrides: Partial<Project> = {}): Project {
     preset_ids: [],
     skill_ids: [],
     agent_ids: [],
+    skill_install_mode: "symlink",
     ...overrides,
   };
 }

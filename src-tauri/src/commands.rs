@@ -16,10 +16,10 @@ use crate::error::{AppError, AppResult};
 use crate::models::{
     Agent, BrokenLink, DiscoveredSkill, EffectiveSkill, GitCacheInfo, ImportResult, ListedSkill,
     LocalSkillPreview, MoveDirection, Preset, PresetReuseMode, PresetReuseResult, Project,
-    ProjectGroup, RegistrySkill, Skill, SyncReport,
+    ProjectGroup, ProjectGuidanceResult, RegistrySkill, Skill, SkillInstallMode, SyncReport,
 };
 use crate::paths::Paths;
-use crate::services::{git_cache, github, importer, installer, linker, platform_link, registry, scanner, updater};
+use crate::services::{git_cache, github, importer, installer, linker, platform_link, project_guidance, registry, scanner, updater};
 use crate::validate;
 
 pub struct AppState {
@@ -534,7 +534,7 @@ pub fn list_skills(state: State<'_, AppState>) -> AppResult<Vec<ListedSkill>> {
     Ok(skills)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rescan_local(state: State<'_, AppState>) -> AppResult<Vec<Skill>> {
     let conn = state.db.conn.lock().unwrap();
     scanner::rescan(&conn, &state.paths)?;
@@ -552,7 +552,7 @@ pub fn preview_local_skill(state: State<'_, AppState>, path: String) -> AppResul
 }
 
 /// Copy a folder into `skills/local/` and register it.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_local_skill(state: State<'_, AppState>, path: String) -> AppResult<Skill> {
     let conn = state.db.conn.lock().unwrap();
     let mut skill = scanner::import_local(&conn, &state.paths, std::path::Path::new(&path))?;
@@ -1124,7 +1124,7 @@ fn delete_skill_source(paths: &Paths, skill: &Skill, deleted_at: DateTime<Local>
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_skill(state: State<'_, AppState>, skill_id: i64) -> AppResult<()> {
     let conn = state.db.conn.lock().unwrap();
     let skill = repo::get_skill(&conn, skill_id)?;
@@ -1172,7 +1172,7 @@ pub fn create_preset(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn update_preset(
     state: State<'_, AppState>,
     preset_id: i64,
@@ -1186,7 +1186,7 @@ pub fn update_preset(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_preset(state: State<'_, AppState>, preset_id: i64) -> AppResult<()> {
     let conn = state.db.conn.lock().unwrap();
     let affected = repo::projects_using_preset(&conn, preset_id)?;
@@ -1195,7 +1195,7 @@ pub fn delete_preset(state: State<'_, AppState>, preset_id: i64) -> AppResult<()
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_preset_skills(
     state: State<'_, AppState>,
     preset_id: i64,
@@ -1208,7 +1208,7 @@ pub fn set_preset_skills(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn reuse_preset(
     state: State<'_, AppState>,
     preset_id: i64,
@@ -1222,7 +1222,7 @@ pub fn reuse_preset(
     Ok(result)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_preset_includes(
     state: State<'_, AppState>,
     preset_id: i64,
@@ -1243,7 +1243,7 @@ pub fn list_agents(state: State<'_, AppState>) -> AppResult<Vec<Agent>> {
     repo::list_agents(&conn)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn create_agent(
     state: State<'_, AppState>,
     name: String,
@@ -1265,7 +1265,7 @@ pub fn create_agent(
     Ok(id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn update_agent(
     state: State<'_, AppState>,
     agent_id: i64,
@@ -1292,7 +1292,7 @@ pub fn update_agent(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_agent(state: State<'_, AppState>, agent_id: i64) -> AppResult<()> {
     let conn = state.db.conn.lock().unwrap();
     let old = repo::get_agent(&conn, agent_id)?;
@@ -1303,7 +1303,7 @@ pub fn delete_agent(state: State<'_, AppState>, agent_id: i64) -> AppResult<()> 
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_project_agent(
     state: State<'_, AppState>,
     project_id: i64,
@@ -1478,49 +1478,29 @@ pub fn set_project_hidden(
     repo::set_project_hidden(&conn, project_id, hidden)
 }
 
-#[tauri::command]
-pub fn delete_project(state: State<'_, AppState>, project_id: i64) -> AppResult<()> {
+#[tauri::command(async)]
+pub fn delete_project(state: State<'_, AppState>, project_id: i64) -> AppResult<SyncReport> {
     let conn = state.db.conn.lock().unwrap();
-    let project = repo::get_project(&conn, project_id)?;
-    // Clean up our links, then forget the project. User files stay untouched.
-    // Cleanup failure doesn't block the delete (user intent wins), but leftover
-    // links are invisible afterwards, so record what happened.
-    let desired = std::collections::BTreeMap::new();
-    let project_path = std::path::Path::new(&project.path);
-    if let Err(e) = linker::sync_project_links(
-        project_path,
-        &desired,
-        &state.paths.skills_dir(),
-    ) {
-        tracing::warn!(project_path = %project.path, error = %e, "project link cleanup failed");
+    let report = linker::cleanup_project(&conn, &state.paths, project_id).unwrap_or_else(|error| {
+        SyncReport {
+            conflicts: vec![format!(
+                "project #{project_id}: cleanup failed; files preserved: {error}"
+            )],
+            ..SyncReport::default()
+        }
+    });
+    if !report.conflicts.is_empty() {
         repo::log_op(
             &conn,
             "delete_project_warning",
-            &format!("link cleanup failed for {}: {e}", project.path),
+            &report.conflicts.join("; "),
         );
     }
-    // Also sweep all agent directories for this project.
-    let agents = repo::list_agents(&conn)?;
-    for agent in &agents {
-        if let Err(e) = linker::sync_links_dir(
-            &project_path.join(&agent.target_dir),
-            &desired,
-            &state.paths.skills_dir(),
-            false,
-        ) {
-            tracing::warn!(
-                project_path = %project.path,
-                agent_dir = %agent.target_dir,
-                error = %e,
-                "project agent directory cleanup failed"
-            );
-        }
-    }
     repo::delete_project(&conn, project_id)?;
-    Ok(())
+    Ok(report)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_project_preset(
     state: State<'_, AppState>,
     project_id: i64,
@@ -1532,7 +1512,7 @@ pub fn set_project_preset(
     linker::sync_project(&conn, &state.paths, project_id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_project_skill(
     state: State<'_, AppState>,
     project_id: i64,
@@ -1553,10 +1533,58 @@ pub fn effective_skills(
     linker::effective_skills(&conn, project_id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_project(state: State<'_, AppState>, project_id: i64) -> AppResult<SyncReport> {
     let conn = state.db.conn.lock().unwrap();
     linker::sync_project(&conn, &state.paths, project_id)
+}
+
+#[tauri::command]
+pub async fn set_project_skill_install_mode(
+    app: AppHandle,
+    project_id: i64,
+    mode: SkillInstallMode,
+) -> AppResult<SyncReport> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Manager;
+        let state = app.state::<AppState>();
+        let conn = state
+            .db
+            .conn
+            .lock()
+            .map_err(|error| AppError::Other(error.to_string()))?;
+        linker::set_project_mode(&conn, &state.paths, project_id, mode)
+    })
+    .await
+    .map_err(|error| AppError::Other(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn generate_project_skill_guidance(
+    app: AppHandle,
+    project_id: i64,
+) -> AppResult<ProjectGuidanceResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Manager;
+        let state = app.state::<AppState>();
+        let conn = state
+            .db
+            .conn
+            .lock()
+            .map_err(|error| AppError::Other(error.to_string()))?;
+        project_guidance::generate(&conn, &state.paths, project_id)
+    })
+    .await
+    .map_err(|error| AppError::Other(error.to_string()))?
+}
+
+#[tauri::command]
+pub fn get_project_sync_report(
+    state: State<'_, AppState>,
+    project_id: i64,
+) -> AppResult<Option<SyncReport>> {
+    let conn = state.db.conn.lock().unwrap();
+    repo::get_project_sync_report(&conn, project_id)
 }
 
 /// Append `.agents/skills/` and active agent dirs to the project's .gitignore if not already present.
@@ -1615,7 +1643,7 @@ pub fn doctor_scan(state: State<'_, AppState>) -> AppResult<Vec<BrokenLink>> {
     linker::doctor_scan(&conn, &state.paths)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn doctor_fix(state: State<'_, AppState>) -> AppResult<usize> {
     let conn = state.db.conn.lock().unwrap();
     linker::doctor_fix(&conn, &state.paths)
@@ -1980,7 +2008,7 @@ pub fn preview_profile_import(
 }
 
 /// Import a profile from JSON string
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_profile(state: State<'_, AppState>, profile_json: String) -> AppResult<ImportResult> {
     let conn = state.db.conn.lock().unwrap();
     let result = importer::import_profile(&conn, &profile_json)?;

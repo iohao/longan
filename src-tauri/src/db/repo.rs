@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use crate::error::{AppError, AppResult};
 use crate::models::{
     Agent, ListedSkill, MoveDirection, Preset, PresetProjectReference, PresetReuseMode,
-    PresetReuseResult, Project, ProjectGroup, Skill,
+    PresetReuseResult, Project, ProjectGroup, Skill, SkillInstallMode, SyncReport,
 };
 
 fn skill_from_row(row: &Row) -> rusqlite::Result<Skill> {
@@ -699,6 +699,10 @@ fn project_from_row(row: &Row) -> rusqlite::Result<Project> {
         path: row.get("path")?,
         group_id: row.get("group_id")?,
         hidden: row.get("hidden")?,
+        skill_install_mode: match row.get::<_, String>("skill_install_mode")?.as_str() {
+            "copy" => SkillInstallMode::Copy,
+            _ => SkillInstallMode::Symlink,
+        },
         created_at: row.get("created_at")?,
         path_exists: false,
         preset_ids: vec![],
@@ -889,9 +893,109 @@ pub fn delete_project_group(conn: &Connection, group_id: i64) -> AppResult<usize
     })
 }
 
+#[derive(Clone, Debug)]
+pub struct ManagedSkillCopy {
+    pub relative_path: String,
+    pub source_path: String,
+    pub fingerprint: String,
+}
+
+pub fn managed_skill_copies(
+    conn: &Connection,
+    project_id: i64,
+) -> AppResult<Vec<ManagedSkillCopy>> {
+    let mut stmt = conn.prepare(
+        "SELECT relative_path, source_path, fingerprint FROM managed_skill_copies WHERE project_id = ?1 ORDER BY relative_path",
+    )?;
+    let rows = stmt
+        .query_map([project_id], |row| {
+            Ok(ManagedSkillCopy {
+                relative_path: row.get(0)?,
+                source_path: row.get(1)?,
+                fingerprint: row.get(2)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn save_managed_skill_copy(
+    conn: &Connection,
+    project_id: i64,
+    copy: &ManagedSkillCopy,
+) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO managed_skill_copies (project_id, relative_path, source_path, fingerprint)
+         VALUES (?1, ?2, ?3, ?4) ON CONFLICT(project_id, relative_path) DO UPDATE SET
+         source_path = excluded.source_path, fingerprint = excluded.fingerprint",
+        params![
+            project_id,
+            copy.relative_path,
+            copy.source_path,
+            copy.fingerprint
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn remove_managed_skill_copy(
+    conn: &Connection,
+    project_id: i64,
+    relative_path: &str,
+) -> AppResult<()> {
+    conn.execute(
+        "DELETE FROM managed_skill_copies WHERE project_id = ?1 AND relative_path = ?2",
+        params![project_id, relative_path],
+    )?;
+    Ok(())
+}
+
+pub fn save_project_sync_report(
+    conn: &Connection,
+    project_id: i64,
+    report: &SyncReport,
+) -> AppResult<()> {
+    let json = serde_json::to_string(report).map_err(|error| AppError::Other(error.to_string()))?;
+    conn.execute(
+        "INSERT INTO project_sync_reports (project_id, report) VALUES (?1, ?2)
+         ON CONFLICT(project_id) DO UPDATE SET report = excluded.report",
+        params![project_id, json],
+    )?;
+    Ok(())
+}
+
+pub fn get_project_sync_report(
+    conn: &Connection,
+    project_id: i64,
+) -> AppResult<Option<SyncReport>> {
+    let json: Option<String> = conn
+        .query_row(
+            "SELECT report FROM project_sync_reports WHERE project_id = ?1",
+            [project_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    json.map(|value| {
+        serde_json::from_str(&value).map_err(|error| AppError::Other(error.to_string()))
+    })
+    .transpose()
+}
+
+pub fn set_project_skill_install_mode(
+    conn: &Connection,
+    project_id: i64,
+    mode: SkillInstallMode,
+) -> AppResult<()> {
+    conn.execute(
+        "UPDATE projects SET skill_install_mode = ?1 WHERE id = ?2",
+        params![mode.as_str(), project_id],
+    )?;
+    Ok(())
+}
+
 pub fn list_projects(conn: &Connection) -> AppResult<Vec<Project>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, path, group_id, hidden, created_at FROM projects ORDER BY group_id, sort_order, id",
+        "SELECT id, name, path, group_id, hidden, created_at, skill_install_mode FROM projects ORDER BY group_id, sort_order, id",
     )?;
     let mut projects = stmt
         .query_map([], project_from_row)?
@@ -903,7 +1007,7 @@ pub fn list_projects(conn: &Connection) -> AppResult<Vec<Project>> {
 pub fn get_project(conn: &Connection, id: i64) -> AppResult<Project> {
     let mut project = conn
         .query_row(
-            "SELECT id, name, path, group_id, hidden, created_at FROM projects WHERE id = ?1",
+            "SELECT id, name, path, group_id, hidden, created_at, skill_install_mode FROM projects WHERE id = ?1",
             params![id],
             project_from_row,
         )

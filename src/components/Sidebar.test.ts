@@ -25,6 +25,7 @@ function createProject(id: number, name: string, groupId: number, hidden = false
     preset_ids: [],
     skill_ids: [],
     agent_ids: [],
+    skill_install_mode: "symlink",
   };
 }
 

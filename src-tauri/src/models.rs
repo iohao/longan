@@ -110,9 +110,27 @@ pub struct Project {
     pub path_exists: bool,
     pub group_id: i64,
     pub hidden: bool,
+    pub skill_install_mode: SkillInstallMode,
     pub preset_ids: Vec<i64>,
     pub skill_ids: Vec<i64>,
     pub agent_ids: Vec<i64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillInstallMode {
+    #[default]
+    Symlink,
+    Copy,
+}
+
+impl SkillInstallMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Symlink => "symlink",
+            Self::Copy => "copy",
+        }
+    }
 }
 
 /// A tool that reads skills from its own project-relative directory (e.g.
@@ -170,10 +188,19 @@ pub struct EffectiveSkill {
     pub conflicted: bool,
 }
 
+/// Files changed and instruction-discovery warnings from explicit guidance generation.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct ProjectGuidanceResult {
+    pub updated: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
 /// Result of syncing one project.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct SyncReport {
     pub created: Vec<String>,
+    #[serde(default)]
+    pub updated: Vec<String>,
     pub removed: Vec<String>,
     pub conflicts: Vec<String>,
     pub project_path_missing: bool,

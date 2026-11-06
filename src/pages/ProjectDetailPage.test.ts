@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   effectiveSkills: vi.fn(),
   openPath: vi.fn(),
   syncProject: vi.fn(),
+  getProjectSyncReport: vi.fn(),
+  setProjectSkillInstallMode: vi.fn(),
   gitignoreLinks: vi.fn(),
   setProjectSkill: vi.fn(),
   setProjectPreset: vi.fn(),
@@ -48,6 +50,7 @@ const project: Project = {
   preset_ids: [1],
   skill_ids: [10],
   agent_ids: [],
+  skill_install_mode: "symlink",
 };
 
 const presets: Preset[] = [
@@ -155,6 +158,8 @@ describe("ProjectDetailPage", () => {
     mocks.effectiveSkills.mockResolvedValue(effective);
     mocks.openPath.mockResolvedValue(undefined);
     mocks.syncProject.mockResolvedValue({ created: [], removed: [] });
+    mocks.getProjectSyncReport.mockResolvedValue(null);
+    mocks.setProjectSkillInstallMode.mockResolvedValue({ created: [], updated: ["DIRECT-SKILL"], removed: [], conflicts: [], project_path_missing: false });
     mocks.gitignoreLinks.mockResolvedValue(undefined);
     mocks.setProjectSkill.mockResolvedValue({ created: [], removed: [] });
     mocks.setProjectPreset.mockResolvedValue({ created: [], removed: [] });
@@ -180,6 +185,139 @@ describe("ProjectDetailPage", () => {
     expect(operationsPanel.attributes("hidden")).toBeDefined();
   });
 
+  it.each(["zh", "en"] as const)("renders mode settings with matching tab and section labels in %s", async (language) => {
+    await setLanguage(language);
+    saveProjectDetailTab(project.id, "settings");
+    const { wrapper } = mountPage();
+    await flushPromises();
+    const tab = wrapper.get("#project-detail-tab-settings");
+    const panel = wrapper.get("#project-detail-panel-settings");
+    expect(tab.attributes("aria-selected")).toBe("true");
+    expect(panel.get("h2").text()).toBe(tab.text());
+    expect(panel.get<HTMLInputElement>('input[value="symlink"]').element.checked).toBe(true);
+    expect(panel.get('button[type="submit"]').attributes("disabled")).toBeDefined();
+  });
+
+  it("applies copy mode only on submission and reloads the saved project", async () => {
+    const onReloadProjects = vi.fn(async () => undefined);
+    const { wrapper } = mountPage({ onReloadProjects });
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    await wrapper.get('input[value="copy"]').setValue();
+    expect(mocks.setProjectSkillInstallMode).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain("生成 / 更新 AI 协作说明");
+    mocks.getProject.mockResolvedValue({ ...project, skill_install_mode: "copy" });
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.setProjectSkillInstallMode).toHaveBeenCalledExactlyOnceWith(project.id, "copy");
+    expect(onReloadProjects).toHaveBeenCalledOnce();
+    expect(wrapper.get('input[value="copy"]').element).toHaveProperty("checked", true);
+    expect(wrapper.get('button[type="submit"]').attributes("disabled")).toBeDefined();
+    expect(wrapper.text()).not.toContain("生成 / 更新 AI 协作说明");
+    expect(wrapper.get("#project-detail-panel-settings").findAll("h2")).toHaveLength(1);
+    expect(wrapper.text()).toContain("复制模式会自动生成并随同步维护 AGENTS.md");
+  });
+
+  it.each(["zh", "en"] as const)("shows automatic guidance instructions without a separate action in %s", async (language) => {
+    await setLanguage(language);
+    mocks.getProject.mockResolvedValue({ ...project, skill_install_mode: "copy" });
+    const { wrapper } = mountPage();
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    const panel = wrapper.get("#project-detail-panel-settings");
+    expect(panel.findAll("h2")).toHaveLength(1);
+    expect(panel.findAll("button")).toHaveLength(1);
+    expect(panel.text()).toContain("AGENTS.md");
+    expect(panel.text()).toContain(".agents/longan.md");
+    expect(mocks.setProjectSkillInstallMode).not.toHaveBeenCalled();
+  });
+
+  it("preserves copy mode when guidance cleanup fails and allows retrying the switch", async () => {
+    const { wrapper } = mountPage();
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    expect(wrapper.text()).not.toContain("生成 / 更新 AI 协作说明");
+    mocks.getProject.mockResolvedValue({ ...project, skill_install_mode: "copy" });
+    await wrapper.get('input[value="copy"]').setValue();
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.get('input[value="copy"]').element).toHaveProperty("checked", true);
+    mocks.setProjectSkillInstallMode.mockRejectedValueOnce(new Error("AI guidance cleanup blocked"));
+    await wrapper.get('input[value="symlink"]').setValue();
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).toContain("AI guidance cleanup blocked");
+    await wrapper.get('input[value="copy"]').setValue();
+    expect(wrapper.get('button[type="submit"]').attributes("disabled")).toBeDefined();
+    await wrapper.get('input[value="symlink"]').setValue();
+    mocks.getProject.mockResolvedValue(project);
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("生成 / 更新 AI 协作说明");
+    expect(wrapper.get('input[value="symlink"]').element).toHaveProperty("checked", true);
+  });
+
+  it("disables conversion while pending and preserves the saved mode after a conflict", async () => {
+    mocks.getProjectSyncReport.mockResolvedValue({ created: [], updated: ["demo"], removed: [], conflicts: [], project_path_missing: false });
+    let rejectConversion!: (error: Error) => void;
+    mocks.setProjectSkillInstallMode.mockImplementationOnce(() => new Promise((_, reject) => { rejectConversion = reject; }));
+    const { wrapper } = mountPage();
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    await wrapper.get('input[value="copy"]').setValue();
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.get("fieldset").attributes("disabled")).toBeDefined();
+    await wrapper.get("form").trigger("submit");
+    expect(mocks.setProjectSkillInstallMode).toHaveBeenCalledOnce();
+    rejectConversion(new Error(".claude/skills/demo: project copy was modified"));
+    await flushPromises();
+    expect(wrapper.text()).toContain(".claude/skills/demo");
+    expect(wrapper.get("fieldset").attributes("disabled")).toBeUndefined();
+    expect(wrapper.get('button[type="submit"]').attributes("disabled")).toBeUndefined();
+    await wrapper.get('input[value="symlink"]').setValue();
+    expect(wrapper.get('button[type="submit"]').attributes("disabled")).toBeDefined();
+  });
+
+  it("blocks conversion when the project path is missing", async () => {
+    mocks.getProject.mockResolvedValue({ ...project, path_exists: false });
+    const { wrapper } = mountPage();
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    expect(wrapper.get("fieldset").attributes("disabled")).toBeDefined();
+    await wrapper.get("form").trigger("submit");
+    expect(mocks.setProjectSkillInstallMode).not.toHaveBeenCalled();
+  });
+
+  it("hides the previous project's settings while a different project is loading", async () => {
+    const { wrapper } = mountPage();
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    let finishLoading!: (value: Project) => void;
+    mocks.getProject.mockImplementationOnce(() => new Promise((resolve) => { finishLoading = resolve; }));
+    await wrapper.setProps({ projectId: 8 });
+    expect(wrapper.find("form").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain(project.name);
+    finishLoading({ ...project, id: 8, name: "Other project", skill_install_mode: "copy" });
+    await flushPromises();
+    await wrapper.get("#project-detail-tab-settings").trigger("click");
+    expect(wrapper.get('input[value="copy"]').element).toHaveProperty("checked", true);
+    expect(mocks.setProjectSkillInstallMode).not.toHaveBeenCalled();
+  });
+
+  it("shows persisted automatic sync conflicts after loading the project", async () => {
+    mocks.getProjectSyncReport.mockResolvedValue({
+      created: [], updated: ["demo"], removed: [], project_path_missing: false,
+      conflicts: [".claude/skills/demo: project copy was modified"],
+    });
+    const { wrapper } = mountPage();
+    await flushPromises();
+    const banner = wrapper.get('[role="status"]');
+    expect(banner.text()).toContain("更新 1");
+    expect(banner.text()).toContain("同步后有部分事项需要处理");
+    expect(banner.text()).toContain(".claude/skills/demo");
+  });
+
   it("supports arrow, Home, and End keyboard navigation", async () => {
     const { wrapper } = mountPage();
     await flushPromises();
@@ -194,10 +332,10 @@ describe("ProjectDetailPage", () => {
     await skillsTab.trigger("keydown", { key: "End" });
     await flushPromises();
 
-    const agentsTab = wrapper.find("#project-detail-tab-agents");
-    expect(agentsTab.attributes("aria-selected")).toBe("true");
+    const settingsTab = wrapper.find("#project-detail-tab-settings");
+    expect(settingsTab.attributes("aria-selected")).toBe("true");
 
-    await agentsTab.trigger("keydown", { key: "Home" });
+    await settingsTab.trigger("keydown", { key: "Home" });
     await flushPromises();
 
     expect(operationsTab.attributes("aria-selected")).toBe("true");

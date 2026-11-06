@@ -23,7 +23,7 @@ import {
   Settings2,
 } from "lucide-vue-next";
 import { api, errorMessage } from "@/api";
-import type { Agent, EffectiveSkill, Preset, Project, Skill, SyncReport } from "@/types";
+import type { Agent, EffectiveSkill, Preset, Project, Skill, SkillInstallMode, SyncReport } from "@/types";
 import {
   buildInheritedPresetMap,
   buildPresetSkillSourceGroups,
@@ -42,6 +42,7 @@ import Badge from "@/components/ui/Badge.vue";
 import Input from "@/components/ui/Input.vue";
 import SkillSourceActions from "@/components/skills/SkillSourceActions.vue";
 import TriggerBadge from "@/components/ui/TriggerBadge.vue";
+import ProjectSkillInstallSettings from "@/components/projects/ProjectSkillInstallSettings.vue";
 import { useProjectStore } from "@/stores/project";
 
 export interface ProjectDetailPageProps {
@@ -74,7 +75,7 @@ const effectiveProjectId = computed<number>(() => {
   return Number.isNaN(idFromParam) ? 0 : idFromParam;
 });
 
-const PROJECT_DETAIL_TAB_ORDER: ProjectDetailTab[] = ["operations", "skills", "agents"];
+const PROJECT_DETAIL_TAB_ORDER: ProjectDetailTab[] = ["operations", "skills", "agents", "settings"];
 
 const project = ref<Project | null>(null);
 const presets = ref<Preset[]>([]);
@@ -87,12 +88,16 @@ const gitignoreDone = ref(false);
 const error = ref<string | null>(null);
 const activeTab = ref<ProjectDetailTab>("operations");
 const skillSearchQuery = ref("");
+const savingMode = ref(false);
 
 watch(
   effectiveProjectId,
   (id) => {
     if (id > 0) {
       activeTab.value = loadProjectDetailTab(id);
+      project.value = null;
+      report.value = null;
+      error.value = null;
       void reload();
     }
   },
@@ -111,14 +116,17 @@ async function reload() {
       api.effectiveSkills(id),
       api.getSetting(PRESET_ORDER_SETTING_KEY),
     ]);
+    const savedReport = await api.getProjectSyncReport(id);
+    if (id !== effectiveProjectId.value) return;
     project.value = proj;
     presets.value = ps;
     agents.value = ag;
     skills.value = ss;
     effective.value = eff;
     presetOrder.value = parsePresetOrder(savedOrderStr, ps);
+    report.value = savedReport;
   } catch (e) {
-    error.value = errorMessage(e);
+    if (id === effectiveProjectId.value) error.value = errorMessage(e);
   }
 }
 
@@ -180,12 +188,12 @@ async function notifyReload() {
     await props.onReloadProjects();
   } else {
     await projectStore.reloadProjects();
+    emit("reloadProjects");
   }
-  emit("reloadProjects");
 }
 
 async function togglePreset(presetId: number) {
-  if (!project.value) return;
+  if (!project.value || savingMode.value) return;
   error.value = null;
   try {
     const linked = !project.value.preset_ids.includes(presetId);
@@ -197,7 +205,7 @@ async function togglePreset(presetId: number) {
 }
 
 async function toggleAgent(agentId: number) {
-  if (!project.value) return;
+  if (!project.value || savingMode.value) return;
   error.value = null;
   try {
     const linked = !project.value.agent_ids.includes(agentId);
@@ -209,7 +217,7 @@ async function toggleAgent(agentId: number) {
 }
 
 async function toggleSkill(skillId: number) {
-  if (!project.value) return;
+  if (!project.value || savingMode.value) return;
   error.value = null;
   try {
     const linked = !project.value.skill_ids.includes(skillId);
@@ -221,12 +229,31 @@ async function toggleSkill(skillId: number) {
 }
 
 async function resync() {
+  if (savingMode.value) return;
   error.value = null;
   try {
     report.value = await api.syncProject(effectiveProjectId.value);
     await reload();
   } catch (e) {
     error.value = errorMessage(e);
+  }
+}
+
+async function applyInstallMode(mode: SkillInstallMode) {
+  if (!project.value || !project.value.path_exists || savingMode.value) return;
+  const projectId = effectiveProjectId.value;
+  savingMode.value = true;
+  error.value = null;
+  report.value = null;
+  try {
+    const result = await api.setProjectSkillInstallMode(projectId, mode);
+    if (projectId !== effectiveProjectId.value) return;
+    report.value = result;
+    await notifyReload();
+  } catch (e) {
+    if (projectId === effectiveProjectId.value) error.value = errorMessage(e);
+  } finally {
+    savingMode.value = false;
   }
 }
 
@@ -326,6 +353,7 @@ const projectTabs = computed<TabItem[]>(() => [
   { id: "operations", label: t("projects.operations"), icon: Settings2 },
   { id: "skills", label: t("projects.attachDirectSkills"), icon: PlusCircle },
   { id: "agents", label: t("projects.agents"), icon: Bot },
+  { id: "settings", label: t("nav.settings"), icon: Settings2 },
 ]);
 </script>
 
@@ -364,26 +392,40 @@ const projectTabs = computed<TabItem[]>(() => [
     <!-- Error Banner -->
     <div
       v-if="error"
+      role="alert"
       class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
     >
       <AlertCircle class="w-4 h-4 shrink-0" />
-      <span>{{ error }}</span>
+      <span class="whitespace-pre-wrap">{{ error }}</span>
     </div>
 
     <!-- Sync Report Banner -->
     <div
       v-if="report"
-      class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
+      role="status"
+      :class="[
+        'rounded-xl border p-4 text-sm',
+        report.conflicts?.length || report.project_path_missing
+          ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+      ]"
     >
-      <Sparkles class="w-4 h-4 shrink-0 text-emerald-400" />
-      <span>
+      <p>
         {{
           t("projects.synced", {
             created: report.created.length,
             removed: report.removed.length,
+            updated: report.updated?.length ?? 0,
           })
         }}
-      </span>
+      </p>
+      <p v-if="report.project_path_missing" class="mt-2">{{ t("projects.installModePathMissing") }}</p>
+      <div v-if="report.conflicts?.length" class="mt-2 space-y-1">
+        <p class="font-medium">{{ t("projects.syncConflicts") }}</p>
+        <ul class="list-disc space-y-1 pl-5">
+          <li v-for="conflict in report.conflicts" :key="conflict" class="break-words">{{ conflict }}</li>
+        </ul>
+      </div>
     </div>
 
     <!-- Tabs Container -->
@@ -470,6 +512,23 @@ const projectTabs = computed<TabItem[]>(() => [
             </Button>
           </div>
         </Card>
+      </section>
+
+      <section
+        id="project-detail-panel-settings"
+        role="tabpanel"
+        aria-labelledby="project-detail-tab-settings"
+        :tabindex="0"
+        :hidden="activeTab !== 'settings'"
+      >
+        <ProjectSkillInstallSettings
+          v-if="activeTab === 'settings'"
+          :key="project.id"
+          :mode="project.skill_install_mode"
+          :path-exists="project.path_exists"
+          :saving="savingMode"
+          @apply="applyInstallMode"
+        />
       </section>
 
       <!-- Skills Panel -->
