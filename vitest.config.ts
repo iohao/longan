@@ -3,7 +3,14 @@ import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue({
+      template: {
+        // Public URLs must stay browser URLs, not Windows filesystem imports.
+        transformAssetUrls: { includeAbsolute: false },
+      },
+    }),
+  ],
   test: {
     environment: "jsdom",
     globals: true,
