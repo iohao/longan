@@ -1174,7 +1174,9 @@ mod tests {
         let text = guide(&f);
         assert!(text.contains("| `.agents/skills/child` |"));
         assert!(text.contains("| `.claude/skills/child` |"));
-        assert!(text.contains(&collection.join("child").to_string_lossy().to_string()));
+        // Stored relative paths can introduce forward slashes on Windows.
+        let expected_source = collection.join("child").to_string_lossy().replace('\\', "/");
+        assert!(text.replace('\\', "/").contains(&expected_source), "{text}");
     }
 
     #[test]
