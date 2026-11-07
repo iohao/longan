@@ -93,6 +93,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        env:
+          # Older release tags may not pin embedded template line endings.
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: "false"
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           ref: ${{ inputs.tag_name || github.ref_name }}
 

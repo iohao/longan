@@ -72,7 +72,7 @@ fn block_range(content: &str) -> AppResult<Option<Range<usize>>> {
 }
 
 fn validate_guide(content: &str) -> AppResult<()> {
-    if !content.starts_with(&format!("{GUIDE_START}\n"))
+    if content.lines().next() != Some(GUIDE_START)
         || !content.trim_end().ends_with(GUIDE_END)
         || content.matches(GUIDE_START).count() != 1
         || content.matches(GUIDE_END).count() != 1
@@ -342,14 +342,15 @@ fn render(conn: &Connection, paths: &Paths, project: &Project) -> AppResult<Stri
             .collect::<Vec<_>>()
             .join("\n")
     };
-    Ok(format!(
+    let rendered = format!(
         include_str!("templates/project_guidance.md"),
         mode = code(project.skill_install_mode.as_str()),
         storage_root = code(&paths.root.to_string_lossy()),
         local_dir = code(&paths.local_dir().to_string_lossy()),
         installations = installations,
         issues = issues,
-    ))
+    );
+    Ok(rendered.replace("\r\n", "\n"))
 }
 
 struct FileChange {
@@ -550,6 +551,49 @@ mod tests {
 
     fn guide(f: &Fixture) -> String {
         std::fs::read_to_string(f.root.join(GUIDE)).unwrap()
+    }
+
+    #[test]
+    fn generated_guidance_uses_lf_and_accepts_crlf_during_sync_and_cleanup() {
+        let f = setup();
+        let original = "User instructions\r\n";
+        std::fs::write(f.root.join(AGENTS), original).unwrap();
+        linker::sync_project(&f.conn, &f.paths, f.id).unwrap();
+        let generated = guide(&f);
+        assert!(!generated.contains('\r'), "generated guidance must use LF");
+        std::fs::write(f.root.join(GUIDE), generated.replace('\n', "\r\n")).unwrap();
+
+        let report = linker::sync_project(&f.conn, &f.paths, f.id).unwrap();
+        assert!(report.conflicts.is_empty(), "{:?}", report.conflicts);
+        assert_eq!(guide(&f), generated);
+
+        std::fs::write(f.root.join(GUIDE), generated.replace('\n', "\r\n")).unwrap();
+        linker::set_project_mode(&f.conn, &f.paths, f.id, SkillInstallMode::Symlink).unwrap();
+        assert!(platform_link::is_dir_link(
+            &f.root.join(".agents/skills/demo")
+        ));
+        assert!(!f.root.join(GUIDE).exists());
+        assert!(std::fs::read_to_string(f.root.join(AGENTS))
+            .unwrap()
+            .starts_with(original));
+    }
+
+    #[test]
+    fn guide_validation_rejects_unowned_or_damaged_files_with_either_line_ending() {
+        for newline in ["\n", "\r\n"] {
+            let valid = format!("{GUIDE_START}{newline}Instructions{newline}{GUIDE_END}{newline}");
+            validate_guide(&valid).unwrap();
+            for damaged in [
+                format!("User text{newline}{valid}"),
+                format!("{valid}User text"),
+                valid.replace(GUIDE_END, ""),
+                format!("{GUIDE_START}{newline}{valid}"),
+                format!("{valid}{GUIDE_END}"),
+                format!("{GUIDE_START} inline{newline}{GUIDE_END}"),
+            ] {
+                assert!(validate_guide(&damaged).is_err(), "{damaged:?}");
+            }
+        }
     }
 
     #[test]

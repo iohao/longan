@@ -1,0 +1,2 @@
+# Embedded guidance templates must be identical across checkout platforms.
+src-tauri/src/services/templates/*.md text eol=lf
